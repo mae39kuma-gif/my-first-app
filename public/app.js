@@ -61,7 +61,7 @@ const creamBtn = document.getElementById("creamBtn");
 // 鍵の状態を画面に反映する
 function showLock(lockState) {
   currentLocked = !!(lockState && lockState.locked);
-  lockBtn.textContent = currentLocked ? "🔒 鍵：かけた" : "🔓 鍵：外した";
+  lockBtn.textContent = currentLocked ? "鍵：かけた" : "鍵：外した";
   lockBtn.classList.toggle("locked", currentLocked);
   const t = document.getElementById("lockStateText");
   t.textContent = lockState && lockState.time
