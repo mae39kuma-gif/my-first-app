@@ -21,6 +21,12 @@ const currentStatus = {}; // { 名前: { status, message, time } }
 let history = []; // 新しいものが先頭
 const HISTORY_MAX = 50;
 
+// ご主人が決める「ごはん予定」（平日の夜 / 土日の昼 / 土日の夜）
+let mealPlan = { weekdayDinner: "", weekendLunch: "", weekendDinner: "" };
+// わんこからの「ごはんリクエスト」（新しいものが先頭・最大50件）
+let requests = []; // { name, text, time }
+const REQUESTS_MAX = 50;
+
 const PUBLIC_DIR = path.join(__dirname, "public");
 
 // 静的ファイルの簡単な配信
@@ -59,6 +65,23 @@ function broadcast(event) {
   clients.forEach((c) => c.res.write(payload));
 }
 
+// POSTのJSONボディを読み取って cb(data) を呼ぶ（共通処理）
+function readJson(req, res, cb) {
+  let body = "";
+  req.on("data", (chunk) => {
+    body += chunk;
+    if (body.length > 10000) req.destroy(); // 巨大なリクエストを弾く
+  });
+  req.on("end", () => {
+    try {
+      cb(JSON.parse(body));
+    } catch (e) {
+      res.writeHead(400);
+      res.end("不正なデータです");
+    }
+  });
+}
+
 const server = http.createServer((req, res) => {
   // --- リアルタイム通知の受け口 (Server-Sent Events) ---
   if (req.url === "/events") {
@@ -72,12 +95,14 @@ const server = http.createServer((req, res) => {
     const client = { res };
     clients.push(client);
 
-    // 今みんながどんな状態か＋直近の履歴を、つないだ直後に送ってあげる
+    // 今みんながどんな状態か＋履歴＋ごはん予定＋リクエストを、つないだ直後に送る
     res.write(
       `data: ${JSON.stringify({
         type: "init",
         statuses: currentStatus,
         history: history,
+        mealPlan: mealPlan,
+        requests: requests,
       })}\n\n`
     );
 
@@ -128,6 +153,52 @@ const server = http.createServer((req, res) => {
   if (req.url === "/clear" && req.method === "POST") {
     history = [];
     broadcast({ type: "logcleared" });
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ ok: true }));
+    return;
+  }
+
+  // --- ご主人がごはん予定を決める ---
+  if (req.url === "/meal" && req.method === "POST") {
+    readJson(req, res, (data) => {
+      mealPlan = {
+        weekdayDinner: String(data.weekdayDinner || "").slice(0, 100),
+        weekendLunch: String(data.weekendLunch || "").slice(0, 100),
+        weekendDinner: String(data.weekendDinner || "").slice(0, 100),
+      };
+      broadcast({ type: "meal", mealPlan });
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: true }));
+    });
+    return;
+  }
+
+  // --- わんこがごはんをリクエストする ---
+  if (req.url === "/request" && req.method === "POST") {
+    readJson(req, res, (data) => {
+      if (!data.name || !data.text) {
+        res.writeHead(400);
+        res.end("name と text が必要です");
+        return;
+      }
+      const request = {
+        name: String(data.name).slice(0, 30),
+        text: String(data.text).slice(0, 100),
+        time: new Date().toISOString(),
+      };
+      requests.unshift(request);
+      if (requests.length > REQUESTS_MAX) requests.length = REQUESTS_MAX;
+      broadcast({ type: "request", request });
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: true }));
+    });
+    return;
+  }
+
+  // --- ご主人がリクエストを消す ---
+  if (req.url === "/clear-requests" && req.method === "POST") {
+    requests = [];
+    broadcast({ type: "requestscleared" });
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ ok: true }));
     return;

@@ -92,6 +92,12 @@
     .empty { color: var(--muted); font-size: 14px; text-align: center; padding: 16px; grid-column: 1 / -1; }
     .notice { font-size: 12px; color: var(--muted); margin-top: 8px; }
     .pill { display:inline-block; background:#f1e2cf; color:var(--accent-dark); border-radius:999px; padding:2px 10px; font-size:12px; }
+    .meal-view { margin: 6px 0 4px; }
+    .meal-row { display:flex; align-items:center; gap:10px; padding:8px 4px; border-bottom:1px dashed #ecdcc4; }
+    .meal-row:last-child { border-bottom:none; }
+    .meal-label { font-size:12px; color:#fff; background:var(--accent); border-radius:999px; padding:3px 10px; white-space:nowrap; }
+    .meal-val { font-size:15px; font-weight:600; }
+    .meal-val.empty-val { color:var(--muted); font-weight:400; }
   </style>
 </head>
 <body>
@@ -113,6 +119,19 @@
         <button class="send" id="sendCustom">送信</button>
       </div>
       <div class="notice" id="permNotice"></div>
+    </div>
+
+    <div class="card">
+      <label>🍚 きょうのごはん予定</label>
+      <div id="mealPlan" class="meal-view">
+        <div class="meal-row"><span class="meal-label">平日の夜</span><span class="meal-val" id="mvWeekdayDinner">まだ決まっていません</span></div>
+        <div class="meal-row"><span class="meal-label">土日の昼</span><span class="meal-val" id="mvWeekendLunch">まだ決まっていません</span></div>
+        <div class="meal-row"><span class="meal-label">土日の夜</span><span class="meal-val" id="mvWeekendDinner">まだ決まっていません</span></div>
+      </div>
+      <div class="send-row">
+        <input type="text" id="reqMsg" placeholder="ごはんのリクエスト（例：からあげがいい！）" />
+        <button class="send" id="sendReq">🦴 おねがい</button>
+      </div>
     </div>
 
     <div class="card">

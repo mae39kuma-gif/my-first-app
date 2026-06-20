@@ -56,6 +56,19 @@
       padding:5px 12px; font-size:12px; cursor:pointer;
     }
     .clear-btn:hover { background:#5a4836; }
+    .meal-edit { background: var(--card); border-radius: 12px; padding: 14px; }
+    .meal-edit label { display:block; font-size:12px; color:var(--muted); margin:8px 0 4px; }
+    .meal-edit input {
+      width:100%; padding:10px; font-size:15px; border:1px solid #4a3a2c;
+      border-radius:8px; background:#2f241b; color:var(--text); outline:none;
+    }
+    .meal-edit input:focus { border-color: var(--accent); }
+    .save-meal {
+      margin-top:12px; width:100%; padding:12px; border:none; border-radius:10px;
+      background: var(--accent); color:#2a2018; font-size:15px; font-weight:600; cursor:pointer;
+    }
+    .saved-msg { display:block; text-align:center; color:#5ad16b; font-size:12px; margin-top:8px; min-height:14px; }
+    .req-name { color: var(--accent); font-weight:600; }
   </style>
 </head>
 <body>
@@ -70,6 +83,24 @@
 
     <h2>🐾 みんなの今の状態</h2>
     <div id="board" class="board"><div class="empty">まだ誰も状態を送っていません 🦴</div></div>
+
+    <h2>🍚 ごはん予定を決める</h2>
+    <div class="meal-edit">
+      <label>平日の夜ごはん</label>
+      <input type="text" id="weekdayDinner" placeholder="例：カレーライス" />
+      <label>土日の昼ごはん</label>
+      <input type="text" id="weekendLunch" placeholder="例：チャーハン" />
+      <label>土日の夜ごはん</label>
+      <input type="text" id="weekendDinner" placeholder="例：からあげ" />
+      <button id="saveMeal" class="save-meal">💾 ごはん予定を報告する</button>
+      <span id="mealSaved" class="saved-msg"></span>
+    </div>
+
+    <h2 style="display:flex; align-items:center; justify-content:space-between">
+      <span>🦴 わんこからのリクエスト</span>
+      <button id="clearReq" class="clear-btn">🗑 消す</button>
+    </h2>
+    <div id="requests" class="log"><div class="empty">まだリクエストはありません</div></div>
 
     <h2 style="display:flex; align-items:center; justify-content:space-between">
       <span>📜 活動ログ（新しい順）</span>

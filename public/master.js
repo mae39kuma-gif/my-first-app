@@ -18,8 +18,12 @@ const connState = document.getElementById("connState");
 const totalCount = document.getElementById("totalCount");
 const activeCount = document.getElementById("activeCount");
 
+const requestsEl = document.getElementById("requests");
+
 const people = {}; // 名前 -> 最新イベント
 let logItems = []; // 活動ログ（新しい順）
+let reqItems = []; // わんこからのリクエスト（新しい順）
+let mealEditing = false; // 入力中はサーバーからの上書きを止める
 
 const ACTIVE_MS = 5 * 60 * 1000; // 5分以内なら「活動中」とみなす
 
@@ -95,6 +99,72 @@ function render() {
   }
 }
 
+// わんこからのリクエスト一覧を描く
+function renderRequests() {
+  if (reqItems.length === 0) {
+    requestsEl.innerHTML = '<div class="empty">まだリクエストはありません</div>';
+    return;
+  }
+  requestsEl.innerHTML = "";
+  reqItems.slice(0, 50).forEach((r) => {
+    const item = document.createElement("div");
+    item.className = "log-item";
+    item.innerHTML = `
+      <span class="emoji" style="font-size:20px">🦴</span>
+      <span><span class="req-name">${escapeHtml(r.name)}</span>：${escapeHtml(r.text)}</span>
+      <span class="log-time">${relativeTime(r.time)}</span>
+    `;
+    requestsEl.appendChild(item);
+  });
+}
+
+// ごはん予定を入力欄に反映する（入力中は邪魔しない）
+function fillMealInputs(plan) {
+  if (mealEditing) return;
+  document.getElementById("weekdayDinner").value = plan.weekdayDinner || "";
+  document.getElementById("weekendLunch").value = plan.weekendLunch || "";
+  document.getElementById("weekendDinner").value = plan.weekendDinner || "";
+}
+
+// 入力中フラグの管理
+["weekdayDinner", "weekendLunch", "weekendDinner"].forEach((id) => {
+  const el = document.getElementById(id);
+  el.addEventListener("focus", () => (mealEditing = true));
+  el.addEventListener("blur", () => (mealEditing = false));
+});
+
+// ごはん予定を報告する
+document.getElementById("saveMeal").addEventListener("click", async () => {
+  mealEditing = false;
+  const plan = {
+    weekdayDinner: document.getElementById("weekdayDinner").value.trim(),
+    weekendLunch: document.getElementById("weekendLunch").value.trim(),
+    weekendDinner: document.getElementById("weekendDinner").value.trim(),
+  };
+  try {
+    await fetch("/meal", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(plan),
+    });
+    const msg = document.getElementById("mealSaved");
+    msg.textContent = "✓ わんこ達に報告しました";
+    setTimeout(() => (msg.textContent = ""), 3000);
+  } catch (e) {
+    alert("報告に失敗しました。");
+  }
+});
+
+// リクエストを消すボタン
+document.getElementById("clearReq").addEventListener("click", async () => {
+  if (!confirm("わんこからのリクエストを全部消しますか？")) return;
+  try {
+    await fetch("/clear-requests", { method: "POST" });
+  } catch (e) {
+    alert("削除に失敗しました。");
+  }
+});
+
 // ログを消すボタン（ご主人だけが操作）
 document.getElementById("clearLog").addEventListener("click", async () => {
   if (!confirm("活動ログを全部消しますか？（みんなの画面からも消えます）")) return;
@@ -115,7 +185,10 @@ function connect() {
     if (data.type === "init") {
       Object.values(data.statuses).forEach((ev) => (people[ev.name] = ev));
       if (Array.isArray(data.history)) logItems = data.history.slice();
+      if (Array.isArray(data.requests)) reqItems = data.requests.slice();
+      if (data.mealPlan) fillMealInputs(data.mealPlan);
       render();
+      renderRequests();
     } else if (data.type === "update") {
       people[data.name] = data;
       logItems.unshift(data);
@@ -124,6 +197,15 @@ function connect() {
     } else if (data.type === "logcleared") {
       logItems = []; // ご主人がログを消した
       render();
+    } else if (data.type === "request") {
+      reqItems.unshift(data.request);
+      if (reqItems.length > 50) reqItems.length = 50;
+      renderRequests();
+    } else if (data.type === "requestscleared") {
+      reqItems = [];
+      renderRequests();
+    } else if (data.type === "meal") {
+      fillMealInputs(data.mealPlan);
     }
   };
 }

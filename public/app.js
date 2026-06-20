@@ -40,6 +40,52 @@ PRESETS.forEach((p) => {
   btnArea.appendChild(b);
 });
 
+// ごはん予定（ご主人が決めたもの）を表示する
+function showMealPlan(plan) {
+  plan = plan || {};
+  const map = {
+    mvWeekdayDinner: plan.weekdayDinner,
+    mvWeekendLunch: plan.weekendLunch,
+    mvWeekendDinner: plan.weekendDinner,
+  };
+  Object.entries(map).forEach(([id, val]) => {
+    const el = document.getElementById(id);
+    if (val) {
+      el.textContent = val;
+      el.classList.remove("empty-val");
+    } else {
+      el.textContent = "まだ決まっていません";
+      el.classList.add("empty-val");
+    }
+  });
+}
+
+// ごはんのリクエストを送る
+document.getElementById("sendReq").addEventListener("click", async () => {
+  const name = nameInput.value.trim();
+  if (!name) {
+    alert("先にあなたの名前を入れてください");
+    nameInput.focus();
+    return;
+  }
+  const text = document.getElementById("reqMsg").value.trim();
+  if (!text) {
+    alert("リクエストを入力してください");
+    return;
+  }
+  try {
+    await fetch("/request", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, text }),
+    });
+    document.getElementById("reqMsg").value = "";
+    alert("ご主人にリクエストを送りました🦴");
+  } catch (e) {
+    alert("送信に失敗しました。");
+  }
+});
+
 // 自由入力の送信
 document.getElementById("sendCustom").addEventListener("click", () => {
   const msg = document.getElementById("customMsg").value.trim();
@@ -162,11 +208,15 @@ function connect() {
     if (data.type === "init") {
       // つないだ直後：今みんながどんな状態かをまとめて反映
       Object.values(data.statuses).forEach((ev) => (people[ev.name] = ev));
+      showMealPlan(data.mealPlan);
       render();
     } else if (data.type === "update") {
       people[data.name] = data; // 同じ人は上書き
       render();
       notify(data);
+    } else if (data.type === "meal") {
+      // ご主人がごはん予定を更新した
+      showMealPlan(data.mealPlan);
     }
   };
 }
