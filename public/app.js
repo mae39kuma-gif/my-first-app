@@ -209,6 +209,8 @@ function escapeHtml(s) {
 
 // ブラウザ通知を出す（汎用）
 function notifyPopup(title, body) {
+  // プッシュが使える端末では、サーバーからのプッシュが通知を出すので二重表示を避ける
+  if (window.__pushActive) return;
   if (!("Notification" in window) || Notification.permission !== "granted") return;
   new Notification(title, { body });
 }
@@ -232,6 +234,7 @@ if ("Notification" in window) {
     });
   } else if (Notification.permission === "granted") {
     permNotice.textContent = "🔔 ブラウザ通知はオンです";
+    registerPush("dog"); // 閉じていても届くプッシュを登録
   }
 }
 

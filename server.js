@@ -10,8 +10,37 @@
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
+const webpush = require("web-push");
 
 const PORT = process.env.PORT || 3000;
+
+// --- プッシュ通知(Web Push)の設定 ---
+// 鍵はRenderの環境変数(VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY)から読む
+const VAPID_PUBLIC = process.env.VAPID_PUBLIC_KEY || "";
+const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY || "";
+let pushEnabled = false;
+if (VAPID_PUBLIC && VAPID_PRIVATE) {
+  webpush.setVapidDetails("mailto:owner@example.com", VAPID_PUBLIC, VAPID_PRIVATE);
+  pushEnabled = true;
+}
+// プッシュの送り先（役割ごと）。dog=わんこ端末 / master=ご主人端末
+const subscriptions = { dog: [], master: [] };
+
+// 指定した役割の端末へプッシュを送る（アプリを閉じていても届く）
+function sendPush(role, title, body) {
+  if (!pushEnabled) return;
+  const payload = JSON.stringify({ title, body });
+  (subscriptions[role] || []).forEach((sub) => {
+    webpush.sendNotification(sub, payload).catch((err) => {
+      // 期限切れ・解除済みの登録は消す
+      if (err && (err.statusCode === 404 || err.statusCode === 410)) {
+        subscriptions[role] = subscriptions[role].filter(
+          (s) => s.endpoint !== sub.endpoint
+        );
+      }
+    });
+  });
+}
 
 // 接続中のクライアント(SSE)を保持する
 let clients = [];
@@ -85,6 +114,31 @@ function readJson(req, res, cb) {
 }
 
 const server = http.createServer((req, res) => {
+  // --- プッシュ用の公開鍵を渡す ---
+  if (req.url === "/vapid-public-key") {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ key: VAPID_PUBLIC }));
+    return;
+  }
+
+  // --- プッシュの登録を受け取る ---
+  if (req.url === "/subscribe" && req.method === "POST") {
+    readJson(req, res, (data) => {
+      const role = data.role === "master" ? "master" : "dog";
+      const sub = data.subscription;
+      if (sub && sub.endpoint) {
+        // 同じ端末の二重登録を防ぐ
+        subscriptions[role] = subscriptions[role].filter(
+          (s) => s.endpoint !== sub.endpoint
+        );
+        subscriptions[role].push(sub);
+      }
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: true }));
+    });
+    return;
+  }
+
   // --- リアルタイム通知の受け口 (Server-Sent Events) ---
   if (req.url === "/events") {
     res.writeHead(200, {
@@ -142,6 +196,9 @@ const server = http.createServer((req, res) => {
         history.unshift(event); // 履歴の先頭に追加
         if (history.length > HISTORY_MAX) history.length = HISTORY_MAX;
         broadcast(event);
+        // ご主人の端末へプッシュ（閉じていても届く）
+        const detail = event.message ? `：${event.message}` : "";
+        sendPush("master", `${event.name}さん`, `${event.status}${detail}`);
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ ok: true }));
       } catch (e) {
@@ -171,6 +228,8 @@ const server = http.createServer((req, res) => {
         weekendDinner: String(data.weekendDinner || "").slice(0, 100),
       };
       broadcast({ type: "meal", mealPlan });
+      // わんこの端末へプッシュ
+      sendPush("dog", "🍚 ごはん予定が更新されたよ", "ご主人が予定を決めたよ！");
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ ok: true }));
     });
@@ -185,6 +244,8 @@ const server = http.createServer((req, res) => {
         time: new Date().toISOString(),
       };
       broadcast({ type: "masterStatus", masterStatus });
+      // わんこの端末へプッシュ
+      if (masterStatus.text) sendPush("dog", "📣 ご主人より", masterStatus.text);
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ ok: true }));
     });
@@ -207,6 +268,8 @@ const server = http.createServer((req, res) => {
       requests.unshift(request);
       if (requests.length > REQUESTS_MAX) requests.length = REQUESTS_MAX;
       broadcast({ type: "request", request });
+      // ご主人の端末へプッシュ
+      sendPush("master", `🦴 ${request.name}からおねがい`, request.text);
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ ok: true }));
     });
