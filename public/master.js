@@ -1,17 +1,5 @@
 // ご主人モニター画面のロジック（見るだけ・状態は送れない）
 
-const PRESETS = [
-  { status: "勉強中", emoji: "📚" },
-  { status: "仕事中", emoji: "💻" },
-  { status: "ご飯中", emoji: "🍚" },
-  { status: "休憩中", emoji: "☕" },
-  { status: "移動中", emoji: "🚃" },
-  { status: "寝てる", emoji: "😴" },
-  { status: "ヒマ", emoji: "🙋" },
-  { status: "電話できる", emoji: "📞" },
-];
-const EMOJI_MAP = Object.fromEntries(PRESETS.map((p) => [p.status, p.emoji]));
-
 const board = document.getElementById("board");
 const logEl = document.getElementById("log");
 const connState = document.getElementById("connState");
@@ -62,13 +50,11 @@ function render() {
   } else {
     board.innerHTML = "";
     list.forEach((ev) => {
-      const emoji = EMOJI_MAP[ev.status] || "💬";
       const detail = ev.message ? `：${ev.message}` : "";
       const active = now - new Date(ev.time).getTime() <= ACTIVE_MS;
       const card = document.createElement("div");
       card.className = "person" + (active ? "" : " idle");
       card.innerHTML = `
-        <div class="emoji">${emoji}</div>
         <div>
           <div class="person-name"><span class="dot ${active ? "on" : "off"}"></span>${escapeHtml(ev.name)}</div>
           <div class="person-status">${escapeHtml(ev.status)}${escapeHtml(detail)}</div>
@@ -85,12 +71,10 @@ function render() {
   } else {
     logEl.innerHTML = "";
     logItems.slice(0, 50).forEach((ev) => {
-      const emoji = EMOJI_MAP[ev.status] || "💬";
       const detail = ev.message ? `：${ev.message}` : "";
       const item = document.createElement("div");
       item.className = "log-item";
       item.innerHTML = `
-        <span class="emoji" style="font-size:20px">${emoji}</span>
         <span><b>${escapeHtml(ev.name)}</b> が <b>${escapeHtml(ev.status)}</b>${escapeHtml(detail)}</span>
         <span class="log-time">${relativeTime(ev.time)}</span>
       `;

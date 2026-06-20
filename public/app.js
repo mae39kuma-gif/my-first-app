@@ -1,19 +1,7 @@
 // 画面側のロジック
 
-// 選べる状態のプリセット（絵文字付き）
-const PRESETS = [
-  { status: "勉強中", emoji: "📚" },
-  { status: "仕事中", emoji: "💻" },
-  { status: "ご飯中", emoji: "🍚" },
-  { status: "休憩中", emoji: "☕" },
-  { status: "移動中", emoji: "🚃" },
-  { status: "寝てる", emoji: "😴" },
-  { status: "ヒマ", emoji: "🙋" },
-  { status: "電話できる", emoji: "📞" },
-];
-
-// 状態 → 絵文字 の対応表（通知表示用）
-const EMOJI_MAP = Object.fromEntries(PRESETS.map((p) => [p.status, p.emoji]));
+// 選べる状態のプリセット（文字だけ・4つ）
+const PRESETS = ["仕事", "ご飯", "休憩", "寝る"];
 
 // このアプリを使うわんこは「ゆうた」1人だけなので名前は固定
 const MY_NAME = "ゆうた";
@@ -35,13 +23,13 @@ function showToast(text) {
   toastTimer = setTimeout(() => toast.classList.remove("show"), 2500);
 }
 
-// 状態ボタンを並べる
+// 状態ボタンを並べる（文字だけ）
 const btnArea = document.getElementById("statusButtons");
-PRESETS.forEach((p) => {
+PRESETS.forEach((status) => {
   const b = document.createElement("button");
   b.className = "status";
-  b.textContent = `${p.emoji} ${p.status}`;
-  b.addEventListener("click", () => sendStatus(p.status));
+  b.textContent = status;
+  b.addEventListener("click", () => sendStatus(status));
   btnArea.appendChild(b);
 });
 
@@ -151,14 +139,12 @@ function render() {
 
   board.innerHTML = "";
   list.forEach((ev) => {
-    const emoji = EMOJI_MAP[ev.status] || "💬";
     const detail = ev.message ? `：${ev.message}` : "";
     const isMe = ev.name === me;
 
     const card = document.createElement("div");
     card.className = "person" + (isMe ? " me" : "");
     card.innerHTML = `
-      <div class="emoji">${emoji}</div>
       <div>
         <div class="person-name">${escapeHtml(ev.name)}${
       isMe ? '<span class="you-tag">あなた</span>' : ""
@@ -185,9 +171,8 @@ function notify(ev) {
   // 自分の操作では通知を出さない
   if (ev.name === MY_NAME) return;
   if (!("Notification" in window) || Notification.permission !== "granted") return;
-  const emoji = EMOJI_MAP[ev.status] || "💬";
   const body = ev.message ? `${ev.status}：${ev.message}` : ev.status;
-  new Notification(`${emoji} ${ev.name}さん`, { body });
+  new Notification(`${ev.name}さん`, { body });
 }
 
 // 通知の許可をお願いする
