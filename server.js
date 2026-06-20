@@ -23,6 +23,8 @@ const HISTORY_MAX = 50;
 
 // ご主人が決める「ごはん予定」（平日の夜 / 土日の昼 / 土日の夜）
 let mealPlan = { weekdayDinner: "", weekendLunch: "", weekendDinner: "" };
+// ご主人が「今なにしてるか」をわんこに教える内容
+let masterStatus = { text: "", time: "" };
 // わんこからの「ごはんリクエスト」（新しいものが先頭・最大50件）
 let requests = []; // { name, text, time }
 const REQUESTS_MAX = 50;
@@ -103,6 +105,7 @@ const server = http.createServer((req, res) => {
         history: history,
         mealPlan: mealPlan,
         requests: requests,
+        masterStatus: masterStatus,
       })}\n\n`
     );
 
@@ -167,6 +170,20 @@ const server = http.createServer((req, res) => {
         weekendDinner: String(data.weekendDinner || "").slice(0, 100),
       };
       broadcast({ type: "meal", mealPlan });
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: true }));
+    });
+    return;
+  }
+
+  // --- ご主人が「今なにしてるか」をわんこに教える ---
+  if (req.url === "/master-status" && req.method === "POST") {
+    readJson(req, res, (data) => {
+      masterStatus = {
+        text: String(data.text || "").slice(0, 100),
+        time: new Date().toISOString(),
+      };
+      broadcast({ type: "masterStatus", masterStatus });
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ ok: true }));
     });

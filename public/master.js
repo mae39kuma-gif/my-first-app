@@ -155,6 +155,27 @@ document.getElementById("saveMeal").addEventListener("click", async () => {
   }
 });
 
+// ご主人が「今なにしてるか」をわんこに教える
+document.getElementById("sendMasterStatus").addEventListener("click", async () => {
+  const text = document.getElementById("masterStatusInput").value.trim();
+  if (!text) {
+    alert("教える内容を入力してください");
+    return;
+  }
+  try {
+    await fetch("/master-status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    const msg = document.getElementById("masterStatusSaved");
+    msg.textContent = "✓ ゆうたに伝えました";
+    setTimeout(() => (msg.textContent = ""), 3000);
+  } catch (e) {
+    alert("送信に失敗しました。");
+  }
+});
+
 // リクエストを消すボタン
 document.getElementById("clearReq").addEventListener("click", async () => {
   if (!confirm("わんこからのリクエストを全部消しますか？")) return;
@@ -187,6 +208,10 @@ function connect() {
       if (Array.isArray(data.history)) logItems = data.history.slice();
       if (Array.isArray(data.requests)) reqItems = data.requests.slice();
       if (data.mealPlan) fillMealInputs(data.mealPlan);
+      if (data.masterStatus && data.masterStatus.text) {
+        const el = document.getElementById("masterStatusInput");
+        if (el !== document.activeElement) el.value = data.masterStatus.text;
+      }
       render();
       renderRequests();
     } else if (data.type === "update") {

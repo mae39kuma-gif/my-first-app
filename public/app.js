@@ -45,6 +45,21 @@ PRESETS.forEach((p) => {
   btnArea.appendChild(b);
 });
 
+// ご主人が「今なにしてるか」を表示する
+function showMasterStatus(ms) {
+  const now = document.getElementById("masterNow");
+  const timeEl = document.getElementById("masterTime");
+  if (ms && ms.text) {
+    now.textContent = ms.text;
+    now.classList.remove("empty-val");
+    timeEl.textContent = ms.time ? `🐾 ${relativeTime(ms.time)}に更新` : "";
+  } else {
+    now.textContent = "まだお知らせはありません";
+    now.classList.add("empty-val");
+    timeEl.textContent = "";
+  }
+}
+
 // ごはん予定（ご主人が決めたもの）を表示する
 function showMealPlan(plan) {
   plan = plan || {};
@@ -204,6 +219,7 @@ function connect() {
       // つないだ直後：今みんながどんな状態かをまとめて反映
       Object.values(data.statuses).forEach((ev) => (people[ev.name] = ev));
       showMealPlan(data.mealPlan);
+      showMasterStatus(data.masterStatus);
       render();
     } else if (data.type === "update") {
       people[data.name] = data; // 同じ人は上書き
@@ -212,6 +228,9 @@ function connect() {
     } else if (data.type === "meal") {
       // ご主人がごはん予定を更新した
       showMealPlan(data.mealPlan);
+    } else if (data.type === "masterStatus") {
+      // ご主人が「今なにしてるか」を更新した
+      showMasterStatus(data.masterStatus);
     }
   };
 }

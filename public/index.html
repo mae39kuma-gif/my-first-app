@@ -98,6 +98,10 @@
     .meal-label { font-size:12px; color:#fff; background:var(--accent); border-radius:999px; padding:3px 10px; white-space:nowrap; }
     .meal-val { font-size:15px; font-weight:600; }
     .meal-val.empty-val { color:var(--muted); font-weight:400; }
+    .master-card { background: linear-gradient(135deg, #fff6e9, #ffe9cf); border: 1px solid #f0d9b8; }
+    .master-now { font-size: 18px; font-weight: 700; color: var(--accent-dark); margin-top: 4px; }
+    .master-now.empty-val { color: var(--muted); font-weight: 400; font-size: 15px; }
+    .master-time { font-size: 11px; color: var(--muted); margin-top: 4px; }
     .toast {
       position: fixed; left: 50%; bottom: 32px; transform: translateX(-50%) translateY(120px);
       background: var(--accent); color: #fff; padding: 16px 22px; border-radius: 16px;
@@ -112,6 +116,12 @@
   <div class="wrap">
     <h1>🐶 ゆうたはいまなにしている？</h1>
     <p class="sub">🐾 ボタンを押すと、ご主人に通知が飛びます。</p>
+
+    <div class="card master-card" id="masterCard">
+      <label>📣 ご主人はいま…</label>
+      <div class="master-now" id="masterNow">まだお知らせはありません</div>
+      <div class="master-time" id="masterTime"></div>
+    </div>
 
     <div class="card">
       <label>🐾 いまの状態を選ぶ</label>

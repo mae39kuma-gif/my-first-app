@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>🦴 ご主人モニター</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦴</text></svg>" />
+  <title>👤 ご主人モニター</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👤</text></svg>" />
   <style>
     :root {
       --bg: #2a2018;        /* ご主人画面は落ち着いた濃い茶色 */
@@ -73,12 +73,19 @@
 </head>
 <body>
   <div class="wrap">
-    <h1>🦴 ご主人モニター</h1>
+    <h1>👤 ご主人モニター</h1>
     <p class="sub">わんこ達の様子を見守る画面です <span class="pill" id="connState">接続中…</span></p>
 
     <div class="stats">
       <div class="stat"><div class="num" id="totalCount">0</div><div class="cap">見守り中</div></div>
       <div class="stat"><div class="num" id="activeCount">0</div><div class="cap">5分以内に活動</div></div>
+    </div>
+
+    <h2>📣 わんこに「今なにしてるか」を教える</h2>
+    <div class="meal-edit">
+      <input type="text" id="masterStatusInput" placeholder="例：おしごと中だよ / もうすぐ帰るよ" />
+      <button id="sendMasterStatus" class="save-meal">📣 ゆうたに教える</button>
+      <span id="masterStatusSaved" class="saved-msg"></span>
     </div>
 
     <h2>🐾 みんなの今の状態</h2>
