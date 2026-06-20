@@ -53,6 +53,59 @@ function showToast(text) {
   toastTimer = setTimeout(() => toast.classList.remove("show"), 2500);
 }
 
+// --- おうちのこと（鍵・クリーム）---
+let currentLocked = false;
+const lockBtn = document.getElementById("lockBtn");
+const creamBtn = document.getElementById("creamBtn");
+
+// 鍵の状態を画面に反映する
+function showLock(lockState) {
+  currentLocked = !!(lockState && lockState.locked);
+  lockBtn.textContent = currentLocked ? "🔒 鍵：かけた" : "🔓 鍵：外した";
+  lockBtn.classList.toggle("locked", currentLocked);
+  const t = document.getElementById("lockStateText");
+  t.textContent = lockState && lockState.time
+    ? `🐾 ${currentLocked ? "かけた" : "外した"}の：${relativeTime(lockState.time)}`
+    : "";
+}
+
+// クリームの状態を画面に反映する
+function showCream(creamState) {
+  const t = document.getElementById("creamStateText");
+  t.textContent = creamState && creamState.time
+    ? `🐾 最後に塗ったの：${relativeTime(creamState.time)}`
+    : "🐾 まだ塗っていません";
+}
+
+// 鍵ボタン：押すたびに かけた⇄外した を切り替える
+lockBtn.addEventListener("click", async () => {
+  const next = !currentLocked;
+  try {
+    await fetch("/lock", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ locked: next }),
+    });
+    showToast(next ? "わん！鍵をかけたと送りました！" : "わん！鍵を外したと送りました！");
+  } catch (e) {
+    alert("送信に失敗しました。");
+  }
+});
+
+// クリームボタン：塗ったことを送る
+creamBtn.addEventListener("click", async () => {
+  try {
+    await fetch("/cream", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    showToast("わん！クリームを塗ったと送りました！");
+  } catch (e) {
+    alert("送信に失敗しました。");
+  }
+});
+
 // 状態ボタンを並べる（文字だけ）
 const btnArea = document.getElementById("statusButtons");
 PRESETS.forEach((status) => {
@@ -307,6 +360,8 @@ function connect() {
       showMealPlan(meal);
       showMasterStatus(ms);
       showCheer(cheer);
+      showLock(data.lockState);
+      showCream(data.creamState);
       saveContent({ mealPlan: meal, masterStatus: ms, lastCheer: cheer });
       render();
       saveCache();
@@ -338,6 +393,10 @@ function connect() {
         showToast(`💌 ご主人より：${data.cheer.text}`);
         notifyPopup("💌 ご主人より", data.cheer.text);
       }
+    } else if (data.type === "lock") {
+      showLock(data.lockState);
+    } else if (data.type === "cream") {
+      showCream(data.creamState);
     }
   };
 }

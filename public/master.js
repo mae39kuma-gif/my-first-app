@@ -130,6 +130,30 @@ function renderRequests() {
   });
 }
 
+// おうちのこと（鍵・クリーム）を表示する
+function showLock(lockState) {
+  const el = document.getElementById("mLock");
+  const t = document.getElementById("mLockTime");
+  if (lockState && lockState.time) {
+    el.textContent = lockState.locked ? "🔒 かけている" : "🔓 外している";
+    t.textContent = `${relativeTime(lockState.time)}に更新`;
+  } else {
+    el.textContent = "—";
+    t.textContent = "";
+  }
+}
+function showCream(creamState) {
+  const el = document.getElementById("mCream");
+  const t = document.getElementById("mCreamTime");
+  if (creamState && creamState.time) {
+    el.textContent = "塗った";
+    t.textContent = `${relativeTime(creamState.time)}`;
+  } else {
+    el.textContent = "まだ塗っていない";
+    t.textContent = "";
+  }
+}
+
 // ごはん予定を入力欄に反映する（入力中は邪魔しない）
 function fillMealInputs(plan) {
   if (mealEditing) return;
@@ -320,6 +344,8 @@ function connect() {
         if (el !== document.activeElement) el.value = msText;
       }
       saveContent({ mealPlan: meal, masterStatus: { text: msText } });
+      showLock(data.lockState);
+      showCream(data.creamState);
       render();
       renderRequests();
       saveCache();
@@ -351,6 +377,13 @@ function connect() {
     } else if (data.type === "meal") {
       fillMealInputs(data.mealPlan);
       updateContent("mealPlan", data.mealPlan);
+    } else if (data.type === "lock") {
+      showLock(data.lockState);
+      if (notifyReady)
+        notify(data.lockState.locked ? "🔒 鍵をかけたよ" : "🔓 鍵を外したよ", "ゆうた");
+    } else if (data.type === "cream") {
+      showCream(data.creamState);
+      if (notifyReady) notify("🧴 クリームを塗ったよ", "ゆうた");
     }
   };
 }

@@ -69,13 +69,16 @@ let mealPlan = { weekdayDinner: "", weekendLunch: "", weekendDinner: "" };
 let masterStatus = { text: "", time: "" };
 // ご主人からわんこへの応援ひとことメッセージ
 let lastCheer = { text: "", time: "" };
+// おうちのこと：鍵の状態（かけた/外した）と、クリームを塗った時刻
+let lockState = { locked: false, time: "" };
+let creamState = { time: "" };
 // わんこからの「ごはんリクエスト」（新しいものが先頭・最大50件）
 let requests = []; // { name, text, time }
 const REQUESTS_MAX = 50;
 
 // --- データベースへの保存・読み込み（Upstash Redisがあれば永久保存）---
 function snapshot() {
-  return { currentStatus, history, mealPlan, masterStatus, lastCheer, requests, subscriptions };
+  return { currentStatus, history, mealPlan, masterStatus, lastCheer, lockState, creamState, requests, subscriptions };
 }
 let saveTimer = null;
 function scheduleSave() {
@@ -99,6 +102,8 @@ async function loadState() {
     if (s.mealPlan) mealPlan = s.mealPlan;
     if (s.masterStatus) masterStatus = s.masterStatus;
     if (s.lastCheer) lastCheer = s.lastCheer;
+    if (s.lockState) lockState = s.lockState;
+    if (s.creamState) creamState = s.creamState;
     if (Array.isArray(s.requests)) requests = s.requests;
     if (s.subscriptions) {
       subscriptions.dog = s.subscriptions.dog || [];
@@ -236,6 +241,8 @@ const server = http.createServer((req, res) => {
         requests: requests,
         masterStatus: masterStatus,
         lastCheer: lastCheer,
+        lockState: lockState,
+        creamState: creamState,
       })}\n\n`
     );
 
@@ -361,6 +368,34 @@ const server = http.createServer((req, res) => {
     broadcast({ type: "cheer", cheer: lastCheer });
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ ok: true }));
+    return;
+  }
+
+  // --- 鍵をかけた/外したを切り替える ---
+  if (req.url === "/lock" && req.method === "POST") {
+    readJson(req, res, (data) => {
+      lockState = { locked: !!data.locked, time: new Date().toISOString() };
+      scheduleSave();
+      broadcast({ type: "lock", lockState });
+      // ご主人の端末へプッシュ
+      sendPush("master", lockState.locked ? "🔒 鍵をかけたよ" : "🔓 鍵を外したよ", "ゆうた");
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: true }));
+    });
+    return;
+  }
+
+  // --- クリームを塗った ---
+  if (req.url === "/cream" && req.method === "POST") {
+    readJson(req, res, () => {
+      creamState = { time: new Date().toISOString() };
+      scheduleSave();
+      broadcast({ type: "cream", creamState });
+      // ご主人の端末へプッシュ
+      sendPush("master", "🧴 クリームを塗ったよ", "ゆうた");
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: true }));
+    });
     return;
   }
 

@@ -125,6 +125,15 @@
       max-width: 88%; text-align: center; pointer-events: none;
     }
     .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    .care-buttons { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .care-btn {
+      padding: 16px 8px; font-size: 16px; border: none; border-radius: 12px;
+      background: #f1e2cf; color: var(--text); cursor: pointer;
+      transition: transform .05s, background .15s;
+    }
+    .care-btn:active { transform: scale(0.97); }
+    .care-btn.locked { background: #b5793f; color: #fff; }
+    .care-state { font-size: 12px; color: var(--muted); margin-top: 8px; }
   </style>
 </head>
 <body>
@@ -145,6 +154,16 @@
       <label>💌 ご主人からのメッセージ</label>
       <div class="cheer-now" id="cheerNow">まだメッセージはありません</div>
       <div class="master-time" id="cheerTime"></div>
+    </div>
+
+    <div class="card">
+      <label>🏠 おうちのこと</label>
+      <div class="care-buttons">
+        <button id="lockBtn" class="care-btn">🔓 鍵：まだ</button>
+        <button id="creamBtn" class="care-btn">🧴 クリームを塗る</button>
+      </div>
+      <div class="care-state" id="lockStateText"></div>
+      <div class="care-state" id="creamStateText"></div>
     </div>
 
     <div class="card">
