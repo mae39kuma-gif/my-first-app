@@ -1,0 +1,10 @@
+{
+  "name": "my-first-app",
+  "version": "1.0.0",
+  "description": "相手が今なにをしているか分かる、ステータス通知アプリ",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "license": "MIT"
+}
