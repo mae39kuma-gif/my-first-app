@@ -26,6 +26,23 @@ function loadCache() {
   try { return JSON.parse(localStorage.getItem(CACHE_KEY)) || {}; } catch (e) { return {}; }
 }
 
+// ごはん予定・状況をこの端末に保存（サーバーが眠っても入力欄が消えないように）
+const CONTENT_KEY = "masterContent";
+function loadContent() {
+  try { return JSON.parse(localStorage.getItem(CONTENT_KEY)) || {}; } catch (e) { return {}; }
+}
+function saveContent(c) {
+  try { localStorage.setItem(CONTENT_KEY, JSON.stringify(c)); } catch (e) {}
+}
+function updateContent(key, value) {
+  const c = loadContent();
+  c[key] = value;
+  saveContent(c);
+}
+function mealHasContent(m) {
+  return !!(m && (m.weekdayDinner || m.weekendLunch || m.weekendDinner));
+}
+
 function relativeTime(iso) {
   const diff = Date.now() - new Date(iso).getTime();
   const min = Math.floor(diff / 60000);
@@ -142,6 +159,7 @@ document.getElementById("saveMeal").addEventListener("click", async () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(plan),
     });
+    updateContent("mealPlan", plan); // 端末にも保存（サーバーが眠っても残る）
     const msg = document.getElementById("mealSaved");
     msg.textContent = "✓ わんこ達に報告しました";
     setTimeout(() => (msg.textContent = ""), 3000);
@@ -163,6 +181,7 @@ document.getElementById("sendMasterStatus").addEventListener("click", async () =
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text }),
     });
+    updateContent("masterStatus", { text }); // 端末にも保存
     const msg = document.getElementById("masterStatusSaved");
     msg.textContent = "✓ ゆうたに伝えました";
     setTimeout(() => (msg.textContent = ""), 3000);
@@ -276,11 +295,18 @@ function connect() {
       Object.values(data.statuses).forEach((ev) => (people[ev.name] = ev));
       if (Array.isArray(data.history) && data.history.length) logItems = data.history.slice();
       if (Array.isArray(data.requests) && data.requests.length) reqItems = data.requests.slice();
-      if (data.mealPlan) fillMealInputs(data.mealPlan);
-      if (data.masterStatus && data.masterStatus.text) {
+      // ごはん予定・状況：サーバーが空なら端末の保存内容を使う
+      const cContent = loadContent();
+      const meal = mealHasContent(data.mealPlan) ? data.mealPlan : (cContent.mealPlan || data.mealPlan);
+      if (meal) fillMealInputs(meal);
+      const msText = (data.masterStatus && data.masterStatus.text)
+        ? data.masterStatus.text
+        : (cContent.masterStatus && cContent.masterStatus.text) || "";
+      if (msText) {
         const el = document.getElementById("masterStatusInput");
-        if (el !== document.activeElement) el.value = data.masterStatus.text;
+        if (el !== document.activeElement) el.value = msText;
       }
+      saveContent({ mealPlan: meal, masterStatus: { text: msText } });
       render();
       renderRequests();
       saveCache();
@@ -311,6 +337,7 @@ function connect() {
       saveCache();
     } else if (data.type === "meal") {
       fillMealInputs(data.mealPlan);
+      updateContent("mealPlan", data.mealPlan);
     }
   };
 }

@@ -27,6 +27,23 @@ function clearCache() {
   try { localStorage.removeItem(CACHE_KEY); } catch (e) {}
 }
 
+// ご主人が決めた内容（ごはん予定・状況・応援メッセージ）もこの端末に保存
+const CONTENT_KEY = "contentCache";
+function loadContent() {
+  try { return JSON.parse(localStorage.getItem(CONTENT_KEY)) || {}; } catch (e) { return {}; }
+}
+function saveContent(c) {
+  try { localStorage.setItem(CONTENT_KEY, JSON.stringify(c)); } catch (e) {}
+}
+function updateContent(key, value) {
+  const c = loadContent();
+  c[key] = value;
+  saveContent(c);
+}
+function mealHasContent(m) {
+  return !!(m && (m.weekdayDinner || m.weekendLunch || m.weekendDinner));
+}
+
 // 「わん！〇〇と送りました！」のお知らせを画面に出す
 let toastTimer = null;
 function showToast(text) {
@@ -269,9 +286,15 @@ function connect() {
       Object.assign(people, loadCache());
       // サーバーに最新の状態があれば、それで上書きする
       Object.values(data.statuses).forEach((ev) => (people[ev.name] = ev));
-      showMealPlan(data.mealPlan);
-      showMasterStatus(data.masterStatus);
-      showCheer(data.lastCheer);
+      // サーバーが眠って空で戻ってきたら、端末に保存した内容を使う
+      const cached = loadContent();
+      const meal = mealHasContent(data.mealPlan) ? data.mealPlan : (cached.mealPlan || data.mealPlan);
+      const ms = (data.masterStatus && data.masterStatus.text) ? data.masterStatus : (cached.masterStatus || data.masterStatus);
+      const cheer = (data.lastCheer && data.lastCheer.text) ? data.lastCheer : (cached.lastCheer || data.lastCheer);
+      showMealPlan(meal);
+      showMasterStatus(ms);
+      showCheer(cheer);
+      saveContent({ mealPlan: meal, masterStatus: ms, lastCheer: cheer });
       render();
       saveCache();
     } else if (data.type === "update") {
@@ -286,15 +309,18 @@ function connect() {
     } else if (data.type === "meal") {
       // ご主人がごはん予定を更新した
       showMealPlan(data.mealPlan);
+      updateContent("mealPlan", data.mealPlan);
       notifyPopup("🍚 ごはん予定が更新されたよ", "ご主人が予定を決めたよ！");
     } else if (data.type === "masterStatus") {
       // ご主人が「今なにしてるか」を更新した
       showMasterStatus(data.masterStatus);
+      updateContent("masterStatus", data.masterStatus);
       if (data.masterStatus && data.masterStatus.text)
         notifyPopup("📣 ご主人より", data.masterStatus.text);
     } else if (data.type === "cheer") {
       // ご主人から応援メッセージが届いた（空のときは削除されたとき）
       showCheer(data.cheer);
+      updateContent("lastCheer", data.cheer);
       if (data.cheer && data.cheer.text) {
         showToast(`💌 ご主人より：${data.cheer.text}`);
         notifyPopup("💌 ご主人より", data.cheer.text);
