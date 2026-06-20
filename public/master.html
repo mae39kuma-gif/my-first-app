@@ -69,6 +69,12 @@
     }
     .saved-msg { display:block; text-align:center; color:#5ad16b; font-size:12px; margin-top:8px; min-height:14px; }
     .req-name { color: var(--accent); font-weight:600; }
+    .cheer-presets { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px; }
+    .cheer-preset {
+      background:#4a3a2c; color:var(--text); border:1px solid #5a4836;
+      border-radius:999px; padding:8px 12px; font-size:13px; cursor:pointer;
+    }
+    .cheer-preset:active { transform: scale(0.96); }
     .perm-notice { font-size: 13px; margin-bottom: 14px; }
     .perm-notice a { color: var(--accent); }
   </style>
@@ -90,6 +96,19 @@
       <input type="text" id="masterStatusInput" placeholder="例：おしごと中だよ / もうすぐ帰るよ" />
       <button id="sendMasterStatus" class="save-meal">📣 ゆうたに教える</button>
       <span id="masterStatusSaved" class="saved-msg"></span>
+    </div>
+
+    <h2>💌 ゆうたへひとこと（応援メッセージ）</h2>
+    <div class="meal-edit">
+      <div class="cheer-presets">
+        <button class="cheer-preset" data-msg="えらいね！">えらいね！</button>
+        <button class="cheer-preset" data-msg="もう少しがんばろう">もう少しがんばろう</button>
+        <button class="cheer-preset" data-msg="おつかれさま！">おつかれさま！</button>
+        <button class="cheer-preset" data-msg="むりしないでね">むりしないでね</button>
+      </div>
+      <input type="text" id="cheerInput" placeholder="自由にひとこと（例：大好きだよ）" />
+      <button id="sendCheer" class="save-meal">💌 ゆうたに送る</button>
+      <span id="cheerSaved" class="saved-msg"></span>
     </div>
 
     <h2>🐾 みんなの今の状態</h2>

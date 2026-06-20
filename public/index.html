@@ -102,6 +102,9 @@
     .master-now { font-size: 18px; font-weight: 700; color: var(--accent-dark); margin-top: 4px; }
     .master-now.empty-val { color: var(--muted); font-weight: 400; font-size: 15px; }
     .master-time { font-size: 11px; color: var(--muted); margin-top: 4px; }
+    .cheer-card { background: linear-gradient(135deg, #ffeef2, #ffe0ea); border: 1px solid #f3c6d4; }
+    .cheer-now { font-size: 18px; font-weight: 700; color: #c2548a; margin-top: 4px; }
+    .cheer-now.empty-val { color: var(--muted); font-weight: 400; font-size: 15px; }
     .mini-btn {
       background: var(--accent); color:#fff; border:none; border-radius:999px;
       padding:6px 14px; font-size:13px; cursor:pointer;
@@ -136,6 +139,12 @@
       </label>
       <div class="master-now" id="masterNow">まだお知らせはありません</div>
       <div class="master-time" id="masterTime"></div>
+    </div>
+
+    <div class="card cheer-card" id="cheerCard">
+      <label>💌 ご主人からのメッセージ</label>
+      <div class="cheer-now" id="cheerNow">まだメッセージはありません</div>
+      <div class="master-time" id="cheerTime"></div>
     </div>
 
     <div class="card">

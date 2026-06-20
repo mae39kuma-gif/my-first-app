@@ -61,6 +61,21 @@ function showMasterStatus(ms) {
   }
 }
 
+// ご主人からの応援メッセージを表示する
+function showCheer(cheer) {
+  const now = document.getElementById("cheerNow");
+  const timeEl = document.getElementById("cheerTime");
+  if (cheer && cheer.text) {
+    now.textContent = cheer.text;
+    now.classList.remove("empty-val");
+    timeEl.textContent = cheer.time ? `🐾 ${relativeTime(cheer.time)}` : "";
+  } else {
+    now.textContent = "まだメッセージはありません";
+    now.classList.add("empty-val");
+    timeEl.textContent = "";
+  }
+}
+
 // ごはん予定（ご主人が決めたもの）を表示する
 function showMealPlan(plan) {
   plan = plan || {};
@@ -256,6 +271,7 @@ function connect() {
       Object.values(data.statuses).forEach((ev) => (people[ev.name] = ev));
       showMealPlan(data.mealPlan);
       showMasterStatus(data.masterStatus);
+      showCheer(data.lastCheer);
       render();
       saveCache();
     } else if (data.type === "update") {
@@ -276,6 +292,11 @@ function connect() {
       showMasterStatus(data.masterStatus);
       if (data.masterStatus && data.masterStatus.text)
         notifyPopup("📣 ご主人より", data.masterStatus.text);
+    } else if (data.type === "cheer") {
+      // ご主人から応援メッセージが届いた
+      showCheer(data.cheer);
+      showToast(`💌 ご主人より：${data.cheer.text}`);
+      notifyPopup("💌 ご主人より", data.cheer.text);
     }
   };
 }

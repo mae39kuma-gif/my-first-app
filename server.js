@@ -54,6 +54,8 @@ const HISTORY_MAX = 50;
 let mealPlan = { weekdayDinner: "", weekendLunch: "", weekendDinner: "" };
 // ご主人が「今なにしてるか」をわんこに教える内容
 let masterStatus = { text: "", time: "" };
+// ご主人からわんこへの応援ひとことメッセージ
+let lastCheer = { text: "", time: "" };
 // わんこからの「ごはんリクエスト」（新しいものが先頭・最大50件）
 let requests = []; // { name, text, time }
 const REQUESTS_MAX = 50;
@@ -160,6 +162,7 @@ const server = http.createServer((req, res) => {
         mealPlan: mealPlan,
         requests: requests,
         masterStatus: masterStatus,
+        lastCheer: lastCheer,
       })}\n\n`
     );
 
@@ -246,6 +249,27 @@ const server = http.createServer((req, res) => {
       broadcast({ type: "masterStatus", masterStatus });
       // わんこの端末へプッシュ
       if (masterStatus.text) sendPush("dog", "📣 ご主人より", masterStatus.text);
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: true }));
+    });
+    return;
+  }
+
+  // --- ご主人からわんこへ応援ひとことを送る ---
+  if (req.url === "/cheer" && req.method === "POST") {
+    readJson(req, res, (data) => {
+      if (!data.text) {
+        res.writeHead(400);
+        res.end("text が必要です");
+        return;
+      }
+      lastCheer = {
+        text: String(data.text).slice(0, 100),
+        time: new Date().toISOString(),
+      };
+      broadcast({ type: "cheer", cheer: lastCheer });
+      // わんこの端末へプッシュ
+      sendPush("dog", "💌 ご主人より", lastCheer.text);
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ ok: true }));
     });

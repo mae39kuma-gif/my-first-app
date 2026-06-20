@@ -171,6 +171,36 @@ document.getElementById("sendMasterStatus").addEventListener("click", async () =
   }
 });
 
+// ゆうたへ応援ひとことを送る
+async function sendCheer(text) {
+  if (!text) {
+    alert("メッセージを入力してください");
+    return;
+  }
+  try {
+    await fetch("/cheer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    const msg = document.getElementById("cheerSaved");
+    msg.textContent = `✓ 「${text}」を送りました`;
+    setTimeout(() => (msg.textContent = ""), 3000);
+  } catch (e) {
+    alert("送信に失敗しました。");
+  }
+}
+// よく使う言葉のボタン
+document.querySelectorAll(".cheer-preset").forEach((b) => {
+  b.addEventListener("click", () => sendCheer(b.dataset.msg));
+});
+// 自由入力の送信
+document.getElementById("sendCheer").addEventListener("click", () => {
+  const text = document.getElementById("cheerInput").value.trim();
+  sendCheer(text);
+  document.getElementById("cheerInput").value = "";
+});
+
 // リクエストを消すボタン
 document.getElementById("clearReq").addEventListener("click", async () => {
   if (!confirm("わんこからのリクエストを全部消しますか？")) return;
