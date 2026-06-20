@@ -11,6 +11,19 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const webpush = require("web-push");
+const { Redis } = require("@upstash/redis");
+
+// --- データベース(Upstash Redis)の設定 ---
+// 環境変数(UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN)があれば、
+// データを永久保存する。なければ今まで通りメモリだけで動く。
+let redis = null;
+if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+  redis = new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN,
+  });
+}
+const STATE_KEY = "appState";
 
 const PORT = process.env.PORT || 3000;
 
@@ -59,6 +72,43 @@ let lastCheer = { text: "", time: "" };
 // わんこからの「ごはんリクエスト」（新しいものが先頭・最大50件）
 let requests = []; // { name, text, time }
 const REQUESTS_MAX = 50;
+
+// --- データベースへの保存・読み込み（Upstash Redisがあれば永久保存）---
+function snapshot() {
+  return { currentStatus, history, mealPlan, masterStatus, lastCheer, requests, subscriptions };
+}
+let saveTimer = null;
+function scheduleSave() {
+  if (!redis) return;
+  clearTimeout(saveTimer);
+  // まとめて保存（短時間に何度も書き込まないように）
+  saveTimer = setTimeout(() => {
+    redis.set(STATE_KEY, snapshot()).catch((e) => console.log("保存に失敗:", e.message));
+  }, 500);
+}
+async function loadState() {
+  if (!redis) return;
+  try {
+    const s = await redis.get(STATE_KEY);
+    if (!s) return;
+    if (s.currentStatus) {
+      for (const k in currentStatus) delete currentStatus[k];
+      Object.assign(currentStatus, s.currentStatus);
+    }
+    if (Array.isArray(s.history)) history = s.history;
+    if (s.mealPlan) mealPlan = s.mealPlan;
+    if (s.masterStatus) masterStatus = s.masterStatus;
+    if (s.lastCheer) lastCheer = s.lastCheer;
+    if (Array.isArray(s.requests)) requests = s.requests;
+    if (s.subscriptions) {
+      subscriptions.dog = s.subscriptions.dog || [];
+      subscriptions.master = s.subscriptions.master || [];
+    }
+    console.log("データベースから読み込みました");
+  } catch (e) {
+    console.log("読み込みに失敗:", e.message);
+  }
+}
 
 const PUBLIC_DIR = path.join(__dirname, "public");
 
@@ -134,6 +184,7 @@ const server = http.createServer((req, res) => {
           (s) => s.endpoint !== sub.endpoint
         );
         subscriptions[role].push(sub);
+        scheduleSave();
       }
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ ok: true }));
@@ -198,6 +249,7 @@ const server = http.createServer((req, res) => {
         currentStatus[event.name] = event;
         history.unshift(event); // 履歴の先頭に追加
         if (history.length > HISTORY_MAX) history.length = HISTORY_MAX;
+        scheduleSave();
         broadcast(event);
         // ご主人の端末へプッシュ（閉じていても届く）
         const detail = event.message ? `：${event.message}` : "";
@@ -216,6 +268,7 @@ const server = http.createServer((req, res) => {
   if (req.url === "/clear" && req.method === "POST") {
     history = [];
     for (const k in currentStatus) delete currentStatus[k]; // 今の状態も消す
+    scheduleSave();
     broadcast({ type: "cleared" });
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ ok: true }));
@@ -230,6 +283,7 @@ const server = http.createServer((req, res) => {
         weekendLunch: String(data.weekendLunch || "").slice(0, 100),
         weekendDinner: String(data.weekendDinner || "").slice(0, 100),
       };
+      scheduleSave();
       broadcast({ type: "meal", mealPlan });
       // わんこの端末へプッシュ
       sendPush("dog", "🍚 ごはん予定が更新されたよ", "ご主人が予定を決めたよ！");
@@ -246,6 +300,7 @@ const server = http.createServer((req, res) => {
         text: String(data.text || "").slice(0, 100),
         time: new Date().toISOString(),
       };
+      scheduleSave();
       broadcast({ type: "masterStatus", masterStatus });
       // わんこの端末へプッシュ
       if (masterStatus.text) sendPush("dog", "📣 ご主人より", masterStatus.text);
@@ -267,6 +322,7 @@ const server = http.createServer((req, res) => {
         text: String(data.text).slice(0, 100),
         time: new Date().toISOString(),
       };
+      scheduleSave();
       broadcast({ type: "cheer", cheer: lastCheer });
       // わんこの端末へプッシュ
       sendPush("dog", "💌 ご主人より", lastCheer.text);
@@ -279,6 +335,7 @@ const server = http.createServer((req, res) => {
   // --- ご主人が応援メッセージを消す ---
   if (req.url === "/clear-cheer" && req.method === "POST") {
     lastCheer = { text: "", time: "" };
+    scheduleSave();
     broadcast({ type: "cheer", cheer: lastCheer });
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ ok: true }));
@@ -300,6 +357,7 @@ const server = http.createServer((req, res) => {
       };
       requests.unshift(request);
       if (requests.length > REQUESTS_MAX) requests.length = REQUESTS_MAX;
+      scheduleSave();
       broadcast({ type: "request", request });
       // ご主人の端末へプッシュ
       sendPush("master", `🦴 ${request.name}からおねがい`, request.text);
@@ -312,6 +370,7 @@ const server = http.createServer((req, res) => {
   // --- ご主人がリクエストを消す ---
   if (req.url === "/clear-requests" && req.method === "POST") {
     requests = [];
+    scheduleSave();
     broadcast({ type: "requestscleared" });
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ ok: true }));
@@ -327,7 +386,10 @@ const server = http.createServer((req, res) => {
   serveStatic(req, res);
 });
 
-server.listen(PORT, () => {
-  console.log(`起動しました → http://localhost:${PORT}`);
-  console.log("自分と相手でこのURLを開いて、名前を入れてボタンを押してみてください。");
+// データベースから前回のデータを読み込んでから起動する
+loadState().finally(() => {
+  server.listen(PORT, () => {
+    console.log(`起動しました → http://localhost:${PORT}`);
+    console.log(redis ? "データベース：接続あり（永久保存）" : "データベース：なし（メモリのみ）");
+  });
 });
