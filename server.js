@@ -152,10 +152,11 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // --- ご主人が活動ログを消す ---
+  // --- ご主人が活動ログを消す（ダッシュボードの状態もまとめて消す）---
   if (req.url === "/clear" && req.method === "POST") {
     history = [];
-    broadcast({ type: "logcleared" });
+    for (const k in currentStatus) delete currentStatus[k]; // 今の状態も消す
+    broadcast({ type: "cleared" });
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ ok: true }));
     return;

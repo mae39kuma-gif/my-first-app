@@ -14,6 +14,19 @@ const toast = document.getElementById("toast");
 // 全員の「今の状態」を名前ごとに覚えておく（同じ人は1枚のカードに上書き）
 const people = {}; // { 名前: イベント }
 
+// ダッシュボードをこの端末に保存しておく（サーバーが眠っても消えないように）
+const CACHE_KEY = "dashboardCache";
+function saveCache() {
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify(people)); } catch (e) {}
+}
+function loadCache() {
+  try { return JSON.parse(localStorage.getItem(CACHE_KEY)) || {}; } catch (e) { return {}; }
+}
+function clearCache() {
+  for (const k in people) delete people[k];
+  try { localStorage.removeItem(CACHE_KEY); } catch (e) {}
+}
+
 // 「わん！〇〇と送りました！」のお知らせを画面に出す
 let toastTimer = null;
 function showToast(text) {
@@ -229,15 +242,23 @@ function connect() {
   es.onmessage = (e) => {
     const data = JSON.parse(e.data);
     if (data.type === "init") {
-      // つないだ直後：今みんながどんな状態かをまとめて反映
+      // まず端末に保存した内容を出す（サーバーが眠って空でも消えないように）
+      Object.assign(people, loadCache());
+      // サーバーに最新の状態があれば、それで上書きする
       Object.values(data.statuses).forEach((ev) => (people[ev.name] = ev));
       showMealPlan(data.mealPlan);
       showMasterStatus(data.masterStatus);
       render();
+      saveCache();
     } else if (data.type === "update") {
       people[data.name] = data; // 同じ人は上書き
       render();
+      saveCache();
       notify(data);
+    } else if (data.type === "cleared") {
+      // ご主人がログ＋ダッシュボードを消した
+      clearCache();
+      render();
     } else if (data.type === "meal") {
       // ご主人がごはん予定を更新した
       showMealPlan(data.mealPlan);

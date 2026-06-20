@@ -15,6 +15,17 @@ let mealEditing = false; // 入力中はサーバーからの上書きを止め�
 
 const ACTIVE_MS = 5 * 60 * 1000; // 5分以内なら「活動中」とみなす
 
+// ダッシュボードとログをこの端末に保存（サーバーが眠っても消えないように）
+const CACHE_KEY = "masterCache";
+function saveCache() {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ people, logItems, reqItems }));
+  } catch (e) {}
+}
+function loadCache() {
+  try { return JSON.parse(localStorage.getItem(CACHE_KEY)) || {}; } catch (e) { return {}; }
+}
+
 function relativeTime(iso) {
   const diff = Date.now() - new Date(iso).getTime();
   const min = Math.floor(diff / 60000);
@@ -172,10 +183,10 @@ document.getElementById("clearReq").addEventListener("click", async () => {
 
 // ログを消すボタン（ご主人だけが操作）
 document.getElementById("clearLog").addEventListener("click", async () => {
-  if (!confirm("活動ログを全部消しますか？（みんなの画面からも消えます）")) return;
+  if (!confirm("活動ログと、今の状態（ダッシュボード）を消しますか？\n（わんこの画面からも消えます）")) return;
   try {
     await fetch("/clear", { method: "POST" });
-    // 消えた結果はサーバーからの "logcleared" で反映される
+    // 消えた結果はサーバーからの "cleared" で反映される
   } catch (e) {
     alert("ログの削除に失敗しました。");
   }
@@ -188,9 +199,15 @@ function connect() {
   es.onmessage = (e) => {
     const data = JSON.parse(e.data);
     if (data.type === "init") {
+      // まず端末に保存した内容を復元（サーバーが眠って空でも消えないように）
+      const cache = loadCache();
+      if (cache.people) Object.assign(people, cache.people);
+      if (Array.isArray(cache.logItems)) logItems = cache.logItems.slice();
+      if (Array.isArray(cache.reqItems)) reqItems = cache.reqItems.slice();
+      // サーバーに中身があれば、それを優先して上書きする
       Object.values(data.statuses).forEach((ev) => (people[ev.name] = ev));
-      if (Array.isArray(data.history)) logItems = data.history.slice();
-      if (Array.isArray(data.requests)) reqItems = data.requests.slice();
+      if (Array.isArray(data.history) && data.history.length) logItems = data.history.slice();
+      if (Array.isArray(data.requests) && data.requests.length) reqItems = data.requests.slice();
       if (data.mealPlan) fillMealInputs(data.mealPlan);
       if (data.masterStatus && data.masterStatus.text) {
         const el = document.getElementById("masterStatusInput");
@@ -198,21 +215,28 @@ function connect() {
       }
       render();
       renderRequests();
+      saveCache();
     } else if (data.type === "update") {
       people[data.name] = data;
       logItems.unshift(data);
       if (logItems.length > 50) logItems.length = 50;
       render();
-    } else if (data.type === "logcleared") {
-      logItems = []; // ご主人がログを消した
+      saveCache();
+    } else if (data.type === "cleared") {
+      // ご主人がログ＋ダッシュボードを消した
+      logItems = [];
+      for (const k in people) delete people[k];
       render();
+      saveCache();
     } else if (data.type === "request") {
       reqItems.unshift(data.request);
       if (reqItems.length > 50) reqItems.length = 50;
       renderRequests();
+      saveCache();
     } else if (data.type === "requestscleared") {
       reqItems = [];
       renderRequests();
+      saveCache();
     } else if (data.type === "meal") {
       fillMealInputs(data.mealPlan);
     }
