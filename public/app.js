@@ -16,14 +16,18 @@ const PRESETS = [
 const EMOJI_MAP = Object.fromEntries(PRESETS.map((p) => [p.status, p.emoji]));
 
 const nameInput = document.getElementById("name");
-const feed = document.getElementById("feed");
+const board = document.getElementById("board");
 const connState = document.getElementById("connState");
 const permNotice = document.getElementById("permNotice");
+
+// 全員の「今の状態」を名前ごとに覚えておく（同じ人は1枚のカードに上書き）
+const people = {}; // { 名前: イベント }
 
 // 名前を覚えておく（次に開いたとき自動で入る）
 nameInput.value = localStorage.getItem("myName") || "";
 nameInput.addEventListener("input", () => {
   localStorage.setItem("myName", nameInput.value.trim());
+  render(); // 自分のカードに「あなた」印を付け直す
 });
 
 // 状態ボタンを並べる
@@ -66,30 +70,51 @@ async function sendStatus(status, message = "") {
   }
 }
 
-// 時刻をきれいに表示
-function fmtTime(iso) {
-  const d = new Date(iso);
-  return d.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
+// 「○分前」のような表示にする
+function relativeTime(iso) {
+  const diff = Date.now() - new Date(iso).getTime();
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return "たった今";
+  if (min < 60) return `${min}分前`;
+  const hour = Math.floor(min / 60);
+  if (hour < 24) return `${hour}時間前`;
+  return `${Math.floor(hour / 24)}日前`;
 }
 
-// 通知を画面の一番上に追加
-function addFeedItem(ev) {
-  const empty = feed.querySelector(".empty");
-  if (empty) empty.remove();
+// ダッシュボードを描き直す（全員のカードを最新更新順に並べる）
+function render() {
+  const me = nameInput.value.trim();
+  const list = Object.values(people).sort(
+    (a, b) => new Date(b.time) - new Date(a.time)
+  );
 
-  const item = document.createElement("div");
-  item.className = "feed-item";
-  const emoji = EMOJI_MAP[ev.status] || "💬";
-  const detail = ev.message ? `：${ev.message}` : "";
-  item.innerHTML = `
-    <div class="emoji">${emoji}</div>
-    <div>
-      <div class="feed-name">${escapeHtml(ev.name)}</div>
-      <div class="feed-status">${escapeHtml(ev.status)}${escapeHtml(detail)}</div>
-    </div>
-    <div class="feed-time">${fmtTime(ev.time)}</div>
-  `;
-  feed.prepend(item);
+  if (list.length === 0) {
+    board.innerHTML = '<div class="empty">まだ誰も状態を送っていません</div>';
+    return;
+  }
+
+  board.innerHTML = "";
+  list.forEach((ev) => {
+    const emoji = EMOJI_MAP[ev.status] || "💬";
+    const detail = ev.message ? `：${ev.message}` : "";
+    const isMe = ev.name === me;
+
+    const card = document.createElement("div");
+    card.className = "person" + (isMe ? " me" : "");
+    card.innerHTML = `
+      <div class="emoji">${emoji}</div>
+      <div>
+        <div class="person-name">${escapeHtml(ev.name)}${
+      isMe ? '<span class="you-tag">あなた</span>' : ""
+    }</div>
+        <div class="person-status">${escapeHtml(ev.status)}${escapeHtml(
+      detail
+    )}</div>
+        <div class="person-time">${relativeTime(ev.time)}に更新</div>
+      </div>
+    `;
+    board.appendChild(card);
+  });
 }
 
 function escapeHtml(s) {
@@ -135,14 +160,17 @@ function connect() {
   es.onmessage = (e) => {
     const data = JSON.parse(e.data);
     if (data.type === "init") {
-      // つないだ直後：今みんながどんな状態かをまとめて表示
-      Object.values(data.statuses)
-        .sort((a, b) => new Date(a.time) - new Date(b.time))
-        .forEach(addFeedItem);
+      // つないだ直後：今みんながどんな状態かをまとめて反映
+      Object.values(data.statuses).forEach((ev) => (people[ev.name] = ev));
+      render();
     } else if (data.type === "update") {
-      addFeedItem(data);
+      people[data.name] = data; // 同じ人は上書き
+      render();
       notify(data);
     }
   };
 }
 connect();
+
+// 「○分前」の表示を定期的に更新する
+setInterval(render, 30000);
