@@ -293,10 +293,12 @@ function connect() {
       if (data.masterStatus && data.masterStatus.text)
         notifyPopup("📣 ご主人より", data.masterStatus.text);
     } else if (data.type === "cheer") {
-      // ご主人から応援メッセージが届いた
+      // ご主人から応援メッセージが届いた（空のときは削除されたとき）
       showCheer(data.cheer);
-      showToast(`💌 ご主人より：${data.cheer.text}`);
-      notifyPopup("💌 ご主人より", data.cheer.text);
+      if (data.cheer && data.cheer.text) {
+        showToast(`💌 ご主人より：${data.cheer.text}`);
+        notifyPopup("💌 ご主人より", data.cheer.text);
+      }
     }
   };
 }

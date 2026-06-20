@@ -200,6 +200,15 @@ document.getElementById("sendCheer").addEventListener("click", () => {
   sendCheer(text);
   document.getElementById("cheerInput").value = "";
 });
+// 応援メッセージを消す
+document.getElementById("clearCheer").addEventListener("click", async () => {
+  if (!confirm("ゆうたへのメッセージを消しますか？")) return;
+  try {
+    await fetch("/clear-cheer", { method: "POST" });
+  } catch (e) {
+    alert("削除に失敗しました。");
+  }
+});
 
 // リクエストを消すボタン
 document.getElementById("clearReq").addEventListener("click", async () => {

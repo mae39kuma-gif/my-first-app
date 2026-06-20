@@ -276,6 +276,15 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // --- ご主人が応援メッセージを消す ---
+  if (req.url === "/clear-cheer" && req.method === "POST") {
+    lastCheer = { text: "", time: "" };
+    broadcast({ type: "cheer", cheer: lastCheer });
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ ok: true }));
+    return;
+  }
+
   // --- わんこがごはんをリクエストする ---
   if (req.url === "/request" && req.method === "POST") {
     readJson(req, res, (data) => {
