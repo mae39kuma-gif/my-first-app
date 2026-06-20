@@ -77,6 +77,29 @@ function showCream(creamState) {
     : "🐾 まだ塗っていません";
 }
 
+// 首輪の状態を画面に反映する
+let currentCollar = false;
+function showCollar(collarState) {
+  currentCollar = !!(collarState && collarState.on);
+  const b = document.getElementById("collarBtn");
+  b.textContent = collarState && collarState.time
+    ? (currentCollar ? "首輪：付けた" : "首輪：外した")
+    : "首輪：まだ";
+  b.classList.toggle("locked", currentCollar);
+  const t = document.getElementById("collarStateText");
+  t.textContent = collarState && collarState.time
+    ? `🐾 ${currentCollar ? "付けた" : "外した"}の：${relativeTime(collarState.time)}`
+    : "";
+}
+
+// 「見て欲しい！」の状態を画面に反映する
+function showLook(lookState) {
+  const t = document.getElementById("lookStateText");
+  t.textContent = lookState && lookState.time
+    ? `🐾 最後に呼んだの：${relativeTime(lookState.time)}`
+    : "";
+}
+
 // 鍵ボタン：押すたびに かけた⇄外した を切り替える
 lockBtn.addEventListener("click", async () => {
   const next = !currentLocked;
@@ -101,6 +124,35 @@ creamBtn.addEventListener("click", async () => {
       body: JSON.stringify({}),
     });
     showToast("わん！クリームを塗ったと送りました！");
+  } catch (e) {
+    alert("送信に失敗しました。");
+  }
+});
+
+// 首輪ボタン：押すたびに 付けた⇄外した を切り替える
+document.getElementById("collarBtn").addEventListener("click", async () => {
+  const next = !currentCollar;
+  try {
+    await fetch("/collar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ on: next }),
+    });
+    showToast(next ? "わん！首輪を付けたと送りました！" : "わん！首輪を外したと送りました！");
+  } catch (e) {
+    alert("送信に失敗しました。");
+  }
+});
+
+// 見て欲しい！ボタン
+document.getElementById("lookBtn").addEventListener("click", async () => {
+  try {
+    await fetch("/look", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    showToast("わん！見て欲しいと送りました！");
   } catch (e) {
     alert("送信に失敗しました。");
   }
@@ -362,6 +414,8 @@ function connect() {
       showCheer(cheer);
       showLock(data.lockState);
       showCream(data.creamState);
+      showCollar(data.collarState);
+      showLook(data.lookState);
       saveContent({ mealPlan: meal, masterStatus: ms, lastCheer: cheer });
       render();
       saveCache();
@@ -397,6 +451,10 @@ function connect() {
       showLock(data.lockState);
     } else if (data.type === "cream") {
       showCream(data.creamState);
+    } else if (data.type === "collar") {
+      showCollar(data.collarState);
+    } else if (data.type === "look") {
+      showLook(data.lookState);
     }
   };
 }

@@ -72,13 +72,16 @@ let lastCheer = { text: "", time: "" };
 // おうちのこと：鍵の状態（かけた/外した）と、クリームを塗った時刻
 let lockState = { locked: false, time: "" };
 let creamState = { time: "" };
+// 首輪の状態（付けた/外した）と、「見て欲しい！」を押した時刻
+let collarState = { on: false, time: "" };
+let lookState = { time: "" };
 // わんこからの「ごはんリクエスト」（新しいものが先頭・最大50件）
 let requests = []; // { name, text, time }
 const REQUESTS_MAX = 50;
 
 // --- データベースへの保存・読み込み（Upstash Redisがあれば永久保存）---
 function snapshot() {
-  return { currentStatus, history, mealPlan, masterStatus, lastCheer, lockState, creamState, requests, subscriptions };
+  return { currentStatus, history, mealPlan, masterStatus, lastCheer, lockState, creamState, collarState, lookState, requests, subscriptions };
 }
 let saveTimer = null;
 function scheduleSave() {
@@ -104,6 +107,8 @@ async function loadState() {
     if (s.lastCheer) lastCheer = s.lastCheer;
     if (s.lockState) lockState = s.lockState;
     if (s.creamState) creamState = s.creamState;
+    if (s.collarState) collarState = s.collarState;
+    if (s.lookState) lookState = s.lookState;
     if (Array.isArray(s.requests)) requests = s.requests;
     if (s.subscriptions) {
       subscriptions.dog = s.subscriptions.dog || [];
@@ -243,6 +248,8 @@ const server = http.createServer((req, res) => {
         lastCheer: lastCheer,
         lockState: lockState,
         creamState: creamState,
+        collarState: collarState,
+        lookState: lookState,
       })}\n\n`
     );
 
@@ -393,6 +400,34 @@ const server = http.createServer((req, res) => {
       broadcast({ type: "cream", creamState });
       // ご主人の端末へプッシュ
       sendPush("master", "🧴 クリームを塗ったよ", "ゆうた");
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: true }));
+    });
+    return;
+  }
+
+  // --- 首輪を付けた/外したを切り替える ---
+  if (req.url === "/collar" && req.method === "POST") {
+    readJson(req, res, (data) => {
+      collarState = { on: !!data.on, time: new Date().toISOString() };
+      scheduleSave();
+      broadcast({ type: "collar", collarState });
+      // ご主人の端末へプッシュ
+      sendPush("master", collarState.on ? "🦮 首輪をつけたよ" : "🦮 首輪を外したよ", "ゆうた");
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: true }));
+    });
+    return;
+  }
+
+  // --- 見て欲しい！ ---
+  if (req.url === "/look" && req.method === "POST") {
+    readJson(req, res, () => {
+      lookState = { time: new Date().toISOString() };
+      scheduleSave();
+      broadcast({ type: "look", lookState });
+      // ご主人の端末へプッシュ
+      sendPush("master", "👀 見て欲しい！", "ゆうた");
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ ok: true }));
     });

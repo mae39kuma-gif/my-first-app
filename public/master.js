@@ -153,6 +153,28 @@ function showCream(creamState) {
     t.textContent = "";
   }
 }
+function showCollar(collarState) {
+  const el = document.getElementById("mCollar");
+  const t = document.getElementById("mCollarTime");
+  if (collarState && collarState.time) {
+    el.textContent = collarState.on ? "🦮 付けている" : "外している";
+    t.textContent = `${relativeTime(collarState.time)}に更新`;
+  } else {
+    el.textContent = "—";
+    t.textContent = "";
+  }
+}
+function showLook(lookState) {
+  const el = document.getElementById("mLook");
+  const t = document.getElementById("mLookTime");
+  if (lookState && lookState.time) {
+    el.textContent = "呼ばれた";
+    t.textContent = `${relativeTime(lookState.time)}`;
+  } else {
+    el.textContent = "—";
+    t.textContent = "";
+  }
+}
 
 // ごはん予定を入力欄に反映する（入力中は邪魔しない）
 function fillMealInputs(plan) {
@@ -346,6 +368,8 @@ function connect() {
       saveContent({ mealPlan: meal, masterStatus: { text: msText } });
       showLock(data.lockState);
       showCream(data.creamState);
+      showCollar(data.collarState);
+      showLook(data.lookState);
       render();
       renderRequests();
       saveCache();
@@ -384,6 +408,13 @@ function connect() {
     } else if (data.type === "cream") {
       showCream(data.creamState);
       if (notifyReady) notify("🧴 クリームを塗ったよ", "ゆうた");
+    } else if (data.type === "collar") {
+      showCollar(data.collarState);
+      if (notifyReady)
+        notify(data.collarState.on ? "🦮 首輪をつけたよ" : "🦮 首輪を外したよ", "ゆうた");
+    } else if (data.type === "look") {
+      showLook(data.lookState);
+      if (notifyReady) notify("👀 見て欲しい！", "ゆうた");
     }
   };
 }
