@@ -166,6 +166,13 @@ function readJson(req, res, cb) {
 }
 
 const server = http.createServer((req, res) => {
+  // --- 状態確認（DB・プッシュが有効かを返す。秘密の値は出さない）---
+  if (req.url === "/health") {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ ok: true, db: !!redis, push: pushEnabled }));
+    return;
+  }
+
   // --- プッシュ用の公開鍵を渡す ---
   if (req.url === "/vapid-public-key") {
     res.writeHead(200, { "Content-Type": "application/json" });
