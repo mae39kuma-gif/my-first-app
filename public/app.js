@@ -15,20 +15,25 @@ const PRESETS = [
 // 状態 → 絵文字 の対応表（通知表示用）
 const EMOJI_MAP = Object.fromEntries(PRESETS.map((p) => [p.status, p.emoji]));
 
-const nameInput = document.getElementById("name");
+// このアプリを使うわんこは「ゆうた」1人だけなので名前は固定
+const MY_NAME = "ゆうた";
+
 const board = document.getElementById("board");
 const connState = document.getElementById("connState");
 const permNotice = document.getElementById("permNotice");
+const toast = document.getElementById("toast");
 
 // 全員の「今の状態」を名前ごとに覚えておく（同じ人は1枚のカードに上書き）
 const people = {}; // { 名前: イベント }
 
-// 名前を覚えておく（次に開いたとき自動で入る）
-nameInput.value = localStorage.getItem("myName") || "";
-nameInput.addEventListener("input", () => {
-  localStorage.setItem("myName", nameInput.value.trim());
-  render(); // 自分のカードに「あなた」印を付け直す
-});
+// 「わん！〇〇と送りました！」のお知らせを画面に出す
+let toastTimer = null;
+function showToast(text) {
+  toast.textContent = text;
+  toast.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove("show"), 2500);
+}
 
 // 状態ボタンを並べる
 const btnArea = document.getElementById("statusButtons");
@@ -62,12 +67,6 @@ function showMealPlan(plan) {
 
 // ごはんのリクエストを送る
 document.getElementById("sendReq").addEventListener("click", async () => {
-  const name = nameInput.value.trim();
-  if (!name) {
-    alert("先にあなたの名前を入れてください");
-    nameInput.focus();
-    return;
-  }
   const text = document.getElementById("reqMsg").value.trim();
   if (!text) {
     alert("リクエストを入力してください");
@@ -77,10 +76,10 @@ document.getElementById("sendReq").addEventListener("click", async () => {
     await fetch("/request", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, text }),
+      body: JSON.stringify({ name: MY_NAME, text }),
     });
     document.getElementById("reqMsg").value = "";
-    alert("ご主人にリクエストを送りました🦴");
+    showToast(`わん！「${text}」とおねがいしました！🦴`);
   } catch (e) {
     alert("送信に失敗しました。");
   }
@@ -93,24 +92,20 @@ document.getElementById("sendCustom").addEventListener("click", () => {
     alert("メッセージを入力してください");
     return;
   }
-  sendStatus("ひとこと", msg);
+  sendStatus("ひとこと", msg, `わん！「${msg}」と送りました！`);
   document.getElementById("customMsg").value = "";
 });
 
 // サーバーへ状態を送る
-async function sendStatus(status, message = "") {
-  const name = nameInput.value.trim();
-  if (!name) {
-    alert("先にあなたの名前を入れてください");
-    nameInput.focus();
-    return;
-  }
+async function sendStatus(status, message = "", toastText = "") {
   try {
     await fetch("/status", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, status, message }),
+      body: JSON.stringify({ name: MY_NAME, status, message }),
     });
+    // 「わん！〇〇をしていると送りました！」のお知らせを出す
+    showToast(toastText || `わん！${status}をしていると送りました！`);
   } catch (e) {
     alert("送信に失敗しました。サーバーが動いているか確認してください。");
   }
@@ -129,7 +124,7 @@ function relativeTime(iso) {
 
 // ダッシュボードを描き直す（全員のカードを最新更新順に並べる）
 function render() {
-  const me = nameInput.value.trim();
+  const me = MY_NAME;
   const list = Object.values(people).sort(
     (a, b) => new Date(b.time) - new Date(a.time)
   );
@@ -173,7 +168,7 @@ function escapeHtml(s) {
 // ブラウザ通知を出す
 function notify(ev) {
   // 自分の操作では通知を出さない
-  if (ev.name === nameInput.value.trim()) return;
+  if (ev.name === MY_NAME) return;
   if (!("Notification" in window) || Notification.permission !== "granted") return;
   const emoji = EMOJI_MAP[ev.status] || "💬";
   const body = ev.message ? `${ev.status}：${ev.message}` : ev.status;

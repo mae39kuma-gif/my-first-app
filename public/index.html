@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>🐶 いまなにしてる？</title>
+  <title>🐶 ゆうたはいまなにしている？</title>
   <!-- ブラウザのタブに表示される🐶アイコン -->
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐶</text></svg>" />
   <style>
@@ -98,17 +98,20 @@
     .meal-label { font-size:12px; color:#fff; background:var(--accent); border-radius:999px; padding:3px 10px; white-space:nowrap; }
     .meal-val { font-size:15px; font-weight:600; }
     .meal-val.empty-val { color:var(--muted); font-weight:400; }
+    .toast {
+      position: fixed; left: 50%; bottom: 32px; transform: translateX(-50%) translateY(120px);
+      background: var(--accent); color: #fff; padding: 16px 22px; border-radius: 16px;
+      font-size: 16px; font-weight: 600; box-shadow: 0 6px 20px rgba(80,50,20,0.3);
+      opacity: 0; transition: transform .3s ease, opacity .3s ease; z-index: 100;
+      max-width: 88%; text-align: center; pointer-events: none;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <h1>🐶 いまなにしてる？</h1>
-    <p class="sub">🐾 名前を入れてボタンを押すと、相手の画面に通知が飛びます。</p>
-
-    <div class="card">
-      <label for="name">🐾 あなたの名前</label>
-      <input type="text" id="name" placeholder="例：たろう" />
-    </div>
+    <h1>🐶 ゆうたはいまなにしている？</h1>
+    <p class="sub">🐾 ボタンを押すと、ご主人に通知が飛びます。</p>
 
     <div class="card">
       <label>🐾 いまの状態を選ぶ</label>
@@ -139,6 +142,9 @@
       <div id="board" class="board"><div class="empty">まだ誰も状態を送っていません 🦴</div></div>
     </div>
   </div>
+
+  <!-- 送信したときに出る「わん！」のお知らせ -->
+  <div id="toast" class="toast"></div>
 
   <script src="app.js"></script>
 </body>
