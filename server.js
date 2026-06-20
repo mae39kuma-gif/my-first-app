@@ -17,6 +17,9 @@ const PORT = process.env.PORT || 3000;
 let clients = [];
 // 各ユーザーの「今の状態」を覚えておく（後から開いた人にも現状を見せるため）
 const currentStatus = {}; // { 名前: { status, message, time } }
+// ご主人画面の活動ログ用に、直近の更新履歴を覚えておく（最大50件）
+let history = []; // 新しいものが先頭
+const HISTORY_MAX = 50;
 
 const PUBLIC_DIR = path.join(__dirname, "public");
 
@@ -69,9 +72,13 @@ const server = http.createServer((req, res) => {
     const client = { res };
     clients.push(client);
 
-    // 今みんながどんな状態かを、つないだ直後に送ってあげる
+    // 今みんながどんな状態か＋直近の履歴を、つないだ直後に送ってあげる
     res.write(
-      `data: ${JSON.stringify({ type: "init", statuses: currentStatus })}\n\n`
+      `data: ${JSON.stringify({
+        type: "init",
+        statuses: currentStatus,
+        history: history,
+      })}\n\n`
     );
 
     req.on("close", () => {
@@ -104,6 +111,8 @@ const server = http.createServer((req, res) => {
           time: new Date().toISOString(),
         };
         currentStatus[event.name] = event;
+        history.unshift(event); // 履歴の先頭に追加
+        if (history.length > HISTORY_MAX) history.length = HISTORY_MAX;
         broadcast(event);
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ ok: true }));
@@ -113,6 +122,20 @@ const server = http.createServer((req, res) => {
       }
     });
     return;
+  }
+
+  // --- ご主人が活動ログを消す ---
+  if (req.url === "/clear" && req.method === "POST") {
+    history = [];
+    broadcast({ type: "logcleared" });
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ ok: true }));
+    return;
+  }
+
+  // --- ご主人用の監視画面 ---
+  if (req.url === "/master" || req.url === "/master/") {
+    req.url = "/master.html";
   }
 
   // --- それ以外は静的ファイル ---
