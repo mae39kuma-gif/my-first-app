@@ -186,11 +186,26 @@ const server = http.createServer((req, res) => {
       const role = data.role === "master" ? "master" : "dog";
       const sub = data.subscription;
       if (sub && sub.endpoint) {
-        // 同じ端末の二重登録を防ぐ
-        subscriptions[role] = subscriptions[role].filter(
-          (s) => s.endpoint !== sub.endpoint
-        );
+        // この端末は一旦どちらの役割からも外し、選んだ役割だけに登録する
+        // （同じ端末が「わんこ」と「ご主人」の両方に入るのを防ぐ）
+        subscriptions.dog = subscriptions.dog.filter((s) => s.endpoint !== sub.endpoint);
+        subscriptions.master = subscriptions.master.filter((s) => s.endpoint !== sub.endpoint);
         subscriptions[role].push(sub);
+        scheduleSave();
+      }
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: true }));
+    });
+    return;
+  }
+
+  // --- プッシュの解除（この端末を全役割から外す）---
+  if (req.url === "/unsubscribe" && req.method === "POST") {
+    readJson(req, res, (data) => {
+      const ep = data.endpoint;
+      if (ep) {
+        subscriptions.dog = subscriptions.dog.filter((s) => s.endpoint !== ep);
+        subscriptions.master = subscriptions.master.filter((s) => s.endpoint !== ep);
         scheduleSave();
       }
       res.writeHead(200, { "Content-Type": "application/json" });

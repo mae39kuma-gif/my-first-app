@@ -15,6 +15,8 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 async function registerPush(role) {
+  // ユーザーが「解除」した端末では登録し直さない
+  if (localStorage.getItem("pushDisabled") === "1") return;
   // 対応していないブラウザ、または通知が許可されていなければ何もしない
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
   if (!("Notification" in window) || Notification.permission !== "granted") return;
@@ -47,5 +49,28 @@ async function registerPush(role) {
   } catch (e) {
     // 失敗してもアプリ自体は普通に使える
     console.log("push登録に失敗:", e);
+  }
+}
+
+// プッシュ通知を解除する（この端末への通知を止める）
+async function unsubscribePush() {
+  localStorage.setItem("pushDisabled", "1"); // 次回以降も登録し直さない
+  window.__pushActive = false;
+  try {
+    if (!("serviceWorker" in navigator)) return;
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (!reg) return;
+    const sub = await reg.pushManager.getSubscription();
+    if (sub) {
+      // サーバーからこの端末を外す
+      await fetch("/unsubscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ endpoint: sub.endpoint }),
+      });
+      await sub.unsubscribe(); // ブラウザ側の登録も解除
+    }
+  } catch (e) {
+    console.log("push解除に失敗:", e);
   }
 }

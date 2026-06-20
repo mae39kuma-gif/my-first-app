@@ -269,8 +269,21 @@ if ("Notification" in window) {
       Notification.requestPermission().then(() => location.reload());
     });
   } else if (Notification.permission === "granted") {
-    permNotice.textContent = "🔔 通知はオンです";
-    registerPush("master"); // 閉じていても届くプッシュを登録
+    if (localStorage.getItem("pushDisabled") === "1") {
+      permNotice.innerHTML = '🔕 通知を解除しています（<a href="#" id="onPush">もう一度オンにする</a>）';
+      document.getElementById("onPush").addEventListener("click", (e) => {
+        e.preventDefault();
+        localStorage.removeItem("pushDisabled");
+        location.reload();
+      });
+    } else {
+      permNotice.innerHTML = '🔔 通知はオンです（<a href="#" id="offPush">解除する</a>）';
+      registerPush("master"); // 閉じていても届くプッシュを登録
+      document.getElementById("offPush").addEventListener("click", (e) => {
+        e.preventDefault();
+        unsubscribePush().then(() => location.reload());
+      });
+    }
   } else {
     permNotice.textContent = "🔕 通知はオフです（端末の設定から許可できます）";
   }
