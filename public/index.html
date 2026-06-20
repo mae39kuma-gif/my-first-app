@@ -8,17 +8,22 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐶</text></svg>" />
   <style>
     :root {
-      --bg: #f4f6fb;
-      --card: #ffffff;
-      --accent: #5b7cfa;
-      --text: #2b2f3a;
-      --muted: #8a90a2;
+      --bg: #f6ede1;        /* クリーム色（わんこテーマ） */
+      --card: #fffaf3;
+      --accent: #b5793f;    /* 犬の毛色っぽい茶色 */
+      --accent-dark: #8a5a2b;
+      --text: #4a3625;
+      --muted: #a98e72;
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
       font-family: -apple-system, "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
       background: var(--bg);
+      /* うっすら足あと🐾を背景に散らす */
+      background-image: radial-gradient(circle at 10% 20%, rgba(181,121,63,0.05) 0 8px, transparent 9px),
+                        radial-gradient(circle at 80% 60%, rgba(181,121,63,0.05) 0 8px, transparent 9px),
+                        radial-gradient(circle at 40% 85%, rgba(181,121,63,0.05) 0 8px, transparent 9px);
       color: var(--text);
       -webkit-text-size-adjust: 100%;
     }
@@ -48,12 +53,12 @@
       font-size: 16px;
       border: none;
       border-radius: 12px;
-      background: #eef1fb;
+      background: #f1e2cf;
       color: var(--text);
       cursor: pointer;
       transition: transform .05s, background .15s;
     }
-    button.status:hover { background: #e2e7fb; }
+    button.status:hover { background: #ead2b3; }
     button.status:active { transform: scale(0.97); }
     .send-row { display: flex; gap: 8px; margin-top: 12px; }
     .send-row input { flex: 1; }
@@ -73,11 +78,11 @@
       gap: 10px;
       padding: 12px;
       border-radius: 12px;
-      background: #f7f8fc;
-      border: 1px solid #eef0f7;
+      background: #f5e9d8;
+      border: 1px solid #ecdcc4;
       animation: pop .25s ease;
     }
-    .person.me { border-color: var(--accent); background: #eef1fb; }
+    .person.me { border-color: var(--accent); background: #f3e0c6; }
     @keyframes pop { from { transform: scale(0.96); opacity: .4; } to { transform: scale(1); opacity: 1; } }
     .emoji { font-size: 28px; }
     .person-name { font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 6px; }
@@ -86,21 +91,21 @@
     .person-time { color: var(--muted); font-size: 11px; margin-top: 2px; }
     .empty { color: var(--muted); font-size: 14px; text-align: center; padding: 16px; grid-column: 1 / -1; }
     .notice { font-size: 12px; color: var(--muted); margin-top: 8px; }
-    .pill { display:inline-block; background:#eef1fb; color:var(--accent); border-radius:999px; padding:2px 10px; font-size:12px; }
+    .pill { display:inline-block; background:#f1e2cf; color:var(--accent-dark); border-radius:999px; padding:2px 10px; font-size:12px; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <h1>🐶 いまなにしてる？</h1>
-    <p class="sub">名前を入れてボタンを押すと、相手の画面に通知が飛びます。</p>
+    <p class="sub">🐾 名前を入れてボタンを押すと、相手の画面に通知が飛びます。</p>
 
     <div class="card">
-      <label for="name">あなたの名前</label>
+      <label for="name">🐾 あなたの名前</label>
       <input type="text" id="name" placeholder="例：たろう" />
     </div>
 
     <div class="card">
-      <label>いまの状態を選ぶ</label>
+      <label>🐾 いまの状態を選ぶ</label>
       <div class="buttons" id="statusButtons"></div>
 
       <div class="send-row">
@@ -111,8 +116,8 @@
     </div>
 
     <div class="card">
-      <label>全員ダッシュボード <span class="pill" id="connState">接続中…</span></label>
-      <div id="board" class="board"><div class="empty">まだ誰も状態を送っていません</div></div>
+      <label>🐾 全員ダッシュボード <span class="pill" id="connState">接続中…</span></label>
+      <div id="board" class="board"><div class="empty">まだ誰も状態を送っていません 🦴</div></div>
     </div>
   </div>
 

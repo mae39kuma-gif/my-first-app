@@ -110,7 +110,7 @@ function render() {
         <div class="person-status">${escapeHtml(ev.status)}${escapeHtml(
       detail
     )}</div>
-        <div class="person-time">${relativeTime(ev.time)}に更新</div>
+        <div class="person-time">🐾 ${relativeTime(ev.time)}に更新</div>
       </div>
     `;
     board.appendChild(card);
