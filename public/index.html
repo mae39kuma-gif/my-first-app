@@ -102,6 +102,18 @@
     .master-now { font-size: 18px; font-weight: 700; color: var(--accent-dark); margin-top: 4px; }
     .master-now.empty-val { color: var(--muted); font-weight: 400; font-size: 15px; }
     .master-time { font-size: 11px; color: var(--muted); margin-top: 4px; }
+    .mini-btn {
+      background: var(--accent); color:#fff; border:none; border-radius:999px;
+      padding:6px 14px; font-size:13px; cursor:pointer;
+    }
+    .mini-btn:active { transform: scale(0.96); }
+    .finish-btn {
+      margin-left:auto; background:#fff; color:var(--accent-dark);
+      border:1px solid var(--accent); border-radius:999px;
+      padding:6px 12px; font-size:13px; cursor:pointer; white-space:nowrap;
+    }
+    .finish-btn:active { transform: scale(0.96); }
+    .person-status.done { color: var(--muted); text-decoration: line-through; }
     .toast {
       position: fixed; left: 50%; bottom: 32px; transform: translateX(-50%) translateY(120px);
       background: var(--accent); color: #fff; padding: 16px 22px; border-radius: 16px;
@@ -118,7 +130,10 @@
     <p class="sub">🐾 ボタンを押すと、ご主人に通知が飛びます。</p>
 
     <div class="card master-card" id="masterCard">
-      <label>📣 ご主人はいま…</label>
+      <label style="display:flex; align-items:center; justify-content:space-between">
+        <span>📣 ご主人はいま…</span>
+        <button id="lonelyBtn" class="mini-btn">🥺 さみしい</button>
+      </label>
       <div class="master-now" id="masterNow">まだお知らせはありません</div>
       <div class="master-time" id="masterTime"></div>
     </div>

@@ -68,6 +68,20 @@ function showMealPlan(plan) {
   });
 }
 
+// 「さみしい」ボタン → ご主人に伝える
+document.getElementById("lonelyBtn").addEventListener("click", async () => {
+  try {
+    await fetch("/request", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: MY_NAME, text: "さみしいよ〜🥺" }),
+    });
+    showToast("わん！さみしいってつたえました！🥺");
+  } catch (e) {
+    alert("送信に失敗しました。");
+  }
+});
+
 // ごはんのリクエストを送る
 document.getElementById("sendReq").addEventListener("click", async () => {
   const text = document.getElementById("reqMsg").value.trim();
@@ -139,8 +153,9 @@ function render() {
 
   board.innerHTML = "";
   list.forEach((ev) => {
-    const detail = ev.message ? `：${ev.message}` : "";
     const isMe = ev.name === me;
+    const done = ev.message === "おわった";
+    const detail = ev.message ? `：${ev.message}` : "";
 
     const card = document.createElement("div");
     card.className = "person" + (isMe ? " me" : "");
@@ -149,12 +164,25 @@ function render() {
         <div class="person-name">${escapeHtml(ev.name)}${
       isMe ? '<span class="you-tag">あなた</span>' : ""
     }</div>
-        <div class="person-status">${escapeHtml(ev.status)}${escapeHtml(
+        <div class="person-status${done ? " done" : ""}">${escapeHtml(ev.status)}${escapeHtml(
       detail
     )}</div>
         <div class="person-time">🐾 ${relativeTime(ev.time)}に更新</div>
       </div>
     `;
+
+    // 仕事・ご飯・休憩のときは「終わり」ボタンを出す（寝るは対象外）
+    const FINISHABLE = ["仕事", "ご飯", "休憩"];
+    if (isMe && FINISHABLE.includes(ev.status) && !done) {
+      const fb = document.createElement("button");
+      fb.className = "finish-btn";
+      fb.textContent = "終わり";
+      fb.addEventListener("click", () =>
+        sendStatus(ev.status, "おわった", `わん！${ev.status}が終わったと送りました！`)
+      );
+      card.appendChild(fb);
+    }
+
     board.appendChild(card);
   });
 }
