@@ -207,13 +207,18 @@ function escapeHtml(s) {
     .replace(/>/g, "&gt;");
 }
 
-// ブラウザ通知を出す
+// ブラウザ通知を出す（汎用）
+function notifyPopup(title, body) {
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+  new Notification(title, { body });
+}
+
+// ブラウザ通知を出す（他の人の状態更新用）
 function notify(ev) {
   // 自分の操作では通知を出さない
   if (ev.name === MY_NAME) return;
-  if (!("Notification" in window) || Notification.permission !== "granted") return;
   const body = ev.message ? `${ev.status}：${ev.message}` : ev.status;
-  new Notification(`${ev.name}さん`, { body });
+  notifyPopup(`${ev.name}さん`, body);
 }
 
 // 通知の許可をお願いする
@@ -262,9 +267,12 @@ function connect() {
     } else if (data.type === "meal") {
       // ご主人がごはん予定を更新した
       showMealPlan(data.mealPlan);
+      notifyPopup("🍚 ごはん予定が更新されたよ", "ご主人が予定を決めたよ！");
     } else if (data.type === "masterStatus") {
       // ご主人が「今なにしてるか」を更新した
       showMasterStatus(data.masterStatus);
+      if (data.masterStatus && data.masterStatus.text)
+        notifyPopup("📣 ご主人より", data.masterStatus.text);
     }
   };
 }

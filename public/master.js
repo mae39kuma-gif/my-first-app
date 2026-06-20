@@ -192,6 +192,32 @@ document.getElementById("clearLog").addEventListener("click", async () => {
   }
 });
 
+// --- ポップアップ通知 ---
+function notify(title, body) {
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+  new Notification(title, { body });
+}
+
+// 通知の許可をお願いする（ご主人の端末で）
+const permNotice = document.getElementById("permNotice");
+if ("Notification" in window) {
+  if (Notification.permission === "default") {
+    permNotice.innerHTML =
+      '<a href="#" id="askPerm">🔔 通知をオンにする</a>（押すと、ゆうたの更新やおねがいがポップアップで届きます）';
+    document.getElementById("askPerm").addEventListener("click", (e) => {
+      e.preventDefault();
+      Notification.requestPermission().then(() => location.reload());
+    });
+  } else if (Notification.permission === "granted") {
+    permNotice.textContent = "🔔 通知はオンです";
+  } else {
+    permNotice.textContent = "🔕 通知はオフです（端末の設定から許可できます）";
+  }
+}
+
+// 最初の読み込みで過去分まで通知しないように、初期化が終わってからONにする
+let notifyReady = false;
+
 function connect() {
   const es = new EventSource("/events");
   es.onopen = () => { connState.textContent = "監視中 ●"; };
@@ -216,12 +242,15 @@ function connect() {
       render();
       renderRequests();
       saveCache();
+      notifyReady = true; // ここから先の新着だけ通知する
     } else if (data.type === "update") {
       people[data.name] = data;
       logItems.unshift(data);
       if (logItems.length > 50) logItems.length = 50;
       render();
       saveCache();
+      const detail = data.message ? `：${data.message}` : "";
+      if (notifyReady) notify(`${data.name}さん`, `${data.status}${detail}`);
     } else if (data.type === "cleared") {
       // ご主人がログ＋ダッシュボードを消した
       logItems = [];
@@ -233,6 +262,7 @@ function connect() {
       if (reqItems.length > 50) reqItems.length = 50;
       renderRequests();
       saveCache();
+      if (notifyReady) notify(`🦴 ${data.request.name}からおねがい`, data.request.text);
     } else if (data.type === "requestscleared") {
       reqItems = [];
       renderRequests();
