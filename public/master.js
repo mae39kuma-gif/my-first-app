@@ -161,7 +161,7 @@ document.getElementById("saveMeal").addEventListener("click", async () => {
     });
     updateContent("mealPlan", plan); // 端末にも保存（サーバーが眠っても残る）
     const msg = document.getElementById("mealSaved");
-    msg.textContent = "✓ わんこ達に報告しました";
+    msg.textContent = "✓ ゆうたに報告しました";
     setTimeout(() => (msg.textContent = ""), 3000);
   } catch (e) {
     alert("報告に失敗しました。");
