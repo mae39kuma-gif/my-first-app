@@ -1,0 +1,12 @@
+# Render（https://render.com）にこのアプリを置くための設定ファイル。
+# GitHubと連携して「Blueprint」から読み込むと、この通りにサーバーが作られます。
+services:
+  - type: web
+    name: ima-nani-shiteru
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
