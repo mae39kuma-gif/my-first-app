@@ -27,23 +27,26 @@ function escapeAttr(s) {
   return escapeHtml(s);
 }
 
-// ---------- 時計・あいさつ ----------
+// ---------- 時計・あいさつ（時計ウィジェットの中身を更新） ----------
 function tick() {
+  const timeEl = document.querySelector('.widget[data-id="clock"] [data-clock="time"]');
+  if (!timeEl) return; // 時計ウィジェットが無ければ何もしない
   const now = new Date();
   const h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
   const pad = (n) => String(n).padStart(2, "0");
-  $("#clock").innerHTML = `${pad(h)}:${pad(m)}<span class="sec">${pad(s)}</span>`;
+  timeEl.innerHTML = `${pad(h)}:${pad(m)}<span class="sec">${pad(s)}</span>`;
   const week = ["日", "月", "火", "水", "木", "金", "土"];
-  $("#date").textContent =
+  const dateEl = document.querySelector('.widget[data-id="clock"] [data-clock="date"]');
+  if (dateEl) dateEl.textContent =
     `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日 (${week[now.getDay()]})`;
   let greet = "こんにちは";
   if (h < 5) greet = "おやすみなさい";
   else if (h < 11) greet = "おはようございます";
   else if (h < 18) greet = "こんにちは";
   else greet = "こんばんは";
-  $("#greeting").textContent = greet;
+  const gEl = document.querySelector('.widget[data-id="clock"] [data-clock="greeting"]');
+  if (gEl) gEl.textContent = greet;
 }
-tick();
 setInterval(tick, 1000);
 
 // ==================================================================
@@ -434,6 +437,14 @@ function renderLinks() {
 
 // ---------- ウィジェットの一覧（登録簿） ----------
 const WIDGETS = {
+  clock: {
+    title: "🕐 時計",
+    body: () => `<div class="clock-widget">
+        <div class="greeting" data-clock="greeting">こんにちは</div>
+        <div class="clock" data-clock="time">--:--<span class="sec">00</span></div>
+        <div class="date" data-clock="date">----年--月--日</div>
+      </div>`,
+  },
   weather: {
     title: "☀️ 天気",
     body: () => `<div class="card-title">☀️ 天気</div>
@@ -518,6 +529,7 @@ const WIDGETS = {
 
 // ---------- レイアウト（並び順・大きさ）----------
 const DEFAULT_LAYOUT = [
+  { id: "clock", size: "lg" },
   { id: "weather", size: "lg" },
   { id: "news", size: "lg" },
   { id: "market", size: "lg" },
@@ -533,18 +545,25 @@ const DEFAULT_LAYOUT = [
 ];
 let layout = store.get("dash_layout", DEFAULT_LAYOUT)
   .filter((it) => WIDGETS[it.id]); // 知らないウィジェットは無視
+// 以前のレイアウトに時計が無ければ先頭に足す（時計のウィジェット化に伴う移行）
+if (!layout.some((it) => it.id === "clock")) layout.unshift({ id: "clock", size: "lg" });
 function saveLayout() { store.set("dash_layout", layout); }
 
+let editMode = false;
 const grid = $("#grid");
 
 function renderGrid() {
-  grid.className = "grid";
+  grid.className = "grid" + (editMode ? " editing" : "");
   grid.innerHTML = layout
     .map((item) => {
       const w = WIDGETS[item.id];
       if (!w) return "";
       const span = item.size === "sm" ? "span1" : "span2";
-      return `<div class="card widget ${span}" data-id="${item.id}">${w.body()}</div>`;
+      return `<div class="card widget ${span}" data-id="${item.id}">
+          <button class="edit-badge del-badge" data-badge="del" aria-label="削除">−</button>
+          <button class="edit-badge size-badge" data-badge="size" aria-label="大きさ">⤢</button>
+          ${w.body()}
+        </div>`;
     })
     .join("");
   // 中身のデータを流し込む
@@ -562,92 +581,171 @@ function renderGrid() {
   restoreMemo();
 }
 
-// ---------- 右上「＋」ボタンでウィジェット追加 ----------
-$("#add-btn").addEventListener("click", openAddWidget);
-
 // ==================================================================
-//  長押しでウィジェットのメニュー（大きさ変更・並べ替え・削除）を開く
+//  iPhone風の編集モード（長押しでぷるぷる→ドラッグ並べ替え・−削除・⤢大きさ）
 // ==================================================================
-const widgetMenu = $("#widget-menu");
-let menuTargetId = null;
+let suppressClick = false;
 let pressTimer = null;
 let pressCard = null;
-let suppressClick = false;
 
-function openWidgetMenu(id) {
-  const item = layout.find((it) => it.id === id);
-  if (!item) return;
-  menuTargetId = id;
-  $("#wm-title").textContent = WIDGETS[id] ? WIDGETS[id].title : "ウィジェット";
-  $("#wm-size").textContent = item.size === "lg" ? "⬚ 小さくする" : "⬛ 大きくする";
-  widgetMenu.showModal();
+function enterEditMode() {
+  if (editMode) return;
+  editMode = true;
+  grid.classList.add("editing");
+  $("#done-btn").classList.remove("hidden"); // 編集中は「完了」も出す（＋はそのまま）
 }
+function exitEditMode() {
+  if (!editMode) return;
+  editMode = false;
+  grid.classList.remove("editing");
+  $("#done-btn").classList.add("hidden");
+}
+$("#done-btn").addEventListener("click", exitEditMode);
+$("#add-btn").addEventListener("click", openAddWidget);
+
+// 編集モード外をタップしたら編集モードを抜ける
+document.addEventListener("pointerdown", (e) => {
+  if (editMode && !e.target.closest(".widget") && !e.target.closest(".toolbar") && !e.target.closest("dialog")) {
+    exitEditMode();
+  }
+}, true);
+
 function cancelPress() {
   if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
   if (pressCard) { pressCard.classList.remove("pressing"); pressCard = null; }
 }
+
+// --- ドラッグ並べ替え ---
+let drag = null;
+function preventTouch(e) { e.preventDefault(); } // ドラッグ中はページのスクロールを止める
+
+function beginLift() {
+  drag.started = true;
+  const el = drag.el;
+  const ph = document.createElement("div");
+  ph.className = "card widget placeholder " + (el.classList.contains("span1") ? "span1" : "span2");
+  drag.placeholder = ph;
+  el.parentNode.insertBefore(ph, el);
+  el.style.width = drag.w + "px";
+  el.style.height = drag.h + "px";
+  el.style.position = "fixed";
+  el.style.left = drag.x0 + "px";
+  el.style.top = drag.y0 + "px";
+  el.style.zIndex = "1000";
+  el.style.pointerEvents = "none";
+  el.classList.add("dragging");
+  document.addEventListener("touchmove", preventTouch, { passive: false });
+  if (navigator.vibrate) navigator.vibrate(10);
+}
+function onDragMove(e) {
+  if (!drag) return;
+  const dx = e.clientX - drag.startX, dy = e.clientY - drag.startY;
+  if (!drag.started) {
+    if (Math.hypot(dx, dy) < 8) return; // 少し動いたらドラッグ開始
+    beginLift();
+  }
+  drag.el.style.left = (e.clientX - drag.offsetX) + "px";
+  drag.el.style.top = (e.clientY - drag.offsetY) + "px";
+  // 指の下にあるウィジェットを探して、受け皿(placeholder)を移動
+  const under = document.elementFromPoint(e.clientX, e.clientY);
+  const target = under && under.closest(".widget");
+  if (target && target !== drag.el && target !== drag.placeholder && target.parentNode === grid) {
+    const r = target.getBoundingClientRect();
+    const before = e.clientY < r.top + r.height / 2;
+    grid.insertBefore(drag.placeholder, before ? target : target.nextSibling);
+  }
+}
+function onDragEnd() {
+  window.removeEventListener("pointermove", onDragMove);
+  window.removeEventListener("pointerup", onDragEnd);
+  window.removeEventListener("pointercancel", onDragEnd);
+  document.removeEventListener("touchmove", preventTouch, { passive: false });
+  if (!drag) return;
+  const el = drag.el;
+  if (drag.started && drag.placeholder) {
+    grid.insertBefore(el, drag.placeholder);
+    drag.placeholder.remove();
+    el.classList.remove("dragging");
+    el.removeAttribute("style");
+    // DOMの並び順から layout を作り直す（大きさは保持）
+    const sizeById = {};
+    layout.forEach((it) => (sizeById[it.id] = it.size));
+    layout = [...grid.querySelectorAll(".widget")]
+      .filter((n) => !n.classList.contains("placeholder"))
+      .map((n) => ({ id: n.dataset.id, size: sizeById[n.dataset.id] || "lg" }));
+    saveLayout();
+  }
+  drag = null;
+}
+
 grid.addEventListener("pointerdown", (e) => {
   const card = e.target.closest(".widget");
   if (!card) return;
-  // 入力欄・リンク・ボタン・チェックの上では長押しメニューを出さない（普通に操作できるように）
-  if (e.target.closest("input, textarea, a, button, .todo-check")) return;
-  const id = card.dataset.id;
-  pressCard = card;
-  card.classList.add("pressing");
-  pressTimer = setTimeout(() => {
-    pressTimer = null;
-    suppressClick = true; // 直後のクリックを無効化
-    cancelPress();
-    if (navigator.vibrate) navigator.vibrate(15);
-    openWidgetMenu(id);
-  }, 500);
+
+  // --- 編集モードでない：長押しで編集モードへ ---
+  if (!editMode) {
+    if (e.target.closest("input, textarea, a, button, .todo-check")) return;
+    pressCard = card;
+    card.classList.add("pressing");
+    pressTimer = setTimeout(() => {
+      pressTimer = null;
+      suppressClick = true;
+      cancelPress();
+      if (navigator.vibrate) navigator.vibrate(15);
+      enterEditMode();
+    }, 500);
+    return;
+  }
+
+  // --- 編集モード中：バッジ以外を掴んでドラッグ開始準備 ---
+  if (e.target.closest(".edit-badge")) return;
+  const rect = card.getBoundingClientRect();
+  drag = {
+    el: card,
+    startX: e.clientX, startY: e.clientY,
+    offsetX: e.clientX - rect.left, offsetY: e.clientY - rect.top,
+    x0: rect.left, y0: rect.top, w: rect.width, h: rect.height,
+    started: false,
+  };
+  window.addEventListener("pointermove", onDragMove);
+  window.addEventListener("pointerup", onDragEnd);
+  window.addEventListener("pointercancel", onDragEnd);
 });
 grid.addEventListener("pointerup", cancelPress);
 grid.addEventListener("pointermove", cancelPress);
 grid.addEventListener("pointercancel", cancelPress);
 window.addEventListener("scroll", cancelPress, true);
-// パソコンの右クリックでもメニューを出す
+// パソコンの右クリックでも編集モードへ
 grid.addEventListener("contextmenu", (e) => {
-  const card = e.target.closest(".widget");
-  if (!card) return;
   if (e.target.closest("input, textarea")) return;
-  e.preventDefault();
-  openWidgetMenu(card.dataset.id);
+  if (e.target.closest(".widget")) { e.preventDefault(); enterEditMode(); }
 });
-
-// メニュー内のボタン
-widgetMenu.addEventListener("click", (e) => {
-  const btn = e.target.closest("button[data-act]");
-  if (!btn) return;
-  const idx = layout.findIndex((it) => it.id === menuTargetId);
-  if (idx < 0) return;
-  const act = btn.dataset.act;
-  if (act === "size") {
-    layout[idx].size = layout[idx].size === "lg" ? "sm" : "lg";
-    $("#wm-size").textContent = layout[idx].size === "lg" ? "⬚ 小さくする" : "⬛ 大きくする";
-    saveLayout();
-    renderGrid();
-  } else if (act === "up" && idx > 0) {
-    [layout[idx - 1], layout[idx]] = [layout[idx], layout[idx - 1]];
-    saveLayout();
-    renderGrid();
-  } else if (act === "down" && idx < layout.length - 1) {
-    [layout[idx + 1], layout[idx]] = [layout[idx], layout[idx + 1]];
-    saveLayout();
-    renderGrid();
-  } else if (act === "remove") {
-    layout.splice(idx, 1);
-    saveLayout();
-    renderGrid();
-    widgetMenu.close();
-  }
-});
-$("#wm-cancel").addEventListener("click", () => widgetMenu.close());
 
 // ---------- グリッド内のクリックをまとめて処理（イベント委譲）----------
 grid.addEventListener("click", (e) => {
-  // 長押しメニューを開いた直後のクリックは無視する
+  // 編集モードに入った直後のクリックは無視する
   if (suppressClick) { suppressClick = false; e.preventDefault(); return; }
+
+  // --- 編集モード中：バッジ操作だけ受け付け、他の操作は無効化 ---
+  if (editMode) {
+    const badge = e.target.closest(".edit-badge");
+    if (badge) {
+      const idx = layout.findIndex((it) => it.id === badge.closest(".widget").dataset.id);
+      if (idx < 0) return;
+      if (badge.dataset.badge === "del") {
+        layout.splice(idx, 1);
+        saveLayout();
+        renderGrid();
+      } else if (badge.dataset.badge === "size") {
+        layout[idx].size = layout[idx].size === "lg" ? "sm" : "lg";
+        saveLayout();
+        renderGrid();
+      }
+      return;
+    }
+    e.preventDefault(); // 編集中はリンク遷移などをさせない
+    return;
+  }
 
   // --- ToDo ---
   const check = e.target.closest(".todo-check");
@@ -817,6 +915,7 @@ $("#add-widget-list").addEventListener("click", (e) => {
 
 // ---------- 起動 ----------
 renderGrid();
+tick();
 initWeather();
 loadMarket();
 loadFx();

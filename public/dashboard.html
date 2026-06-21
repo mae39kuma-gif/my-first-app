@@ -33,23 +33,28 @@
     h1, h2, h3 { margin: 0; font-weight: 700; }
     .muted { color: var(--muted); }
 
-    /* --- ヘッダー(時計) --- */
-    .hero { text-align: center; padding: 22px 10px 6px; }
-    .greeting { font-size: 16px; color: var(--muted); }
-    .clock { font-size: 64px; font-weight: 800; letter-spacing: 1px; line-height: 1.05; font-variant-numeric: tabular-nums; }
-    .clock .sec { font-size: 26px; color: var(--accent); vertical-align: 6px; }
-    .date { font-size: 16px; color: var(--muted); margin-top: 2px; }
+    /* --- 時計 --- */
+    .greeting { font-size: 15px; color: var(--muted); }
+    .clock { font-size: 54px; font-weight: 800; letter-spacing: 1px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+    .clock .sec { font-size: 22px; color: var(--accent); vertical-align: 5px; }
+    .date { font-size: 15px; color: var(--muted); margin-top: 2px; }
+    .widget.span1 .clock { font-size: 40px; }
+    .widget.span1 .clock .sec { font-size: 16px; }
 
     /* --- ツールバー --- */
-    .toolbar { display: flex; justify-content: flex-end; margin-top: 8px; }
+    .toolbar { display: flex; justify-content: flex-end; align-items: center; gap: 14px; margin-top: 10px; min-height: 36px; }
+    /* ＋ボタンは無色で背景に同化 */
     .add-btn {
-      width: 44px; height: 44px; border-radius: 50%;
-      background: var(--accent); color: #06283d; border: none;
-      font-size: 26px; font-weight: 700; line-height: 1; cursor: pointer;
-      display: grid; place-items: center;
-      box-shadow: 0 4px 14px rgba(56,189,248,.35);
+      background: transparent; color: var(--muted); border: none;
+      font-size: 30px; font-weight: 300; line-height: 1; cursor: pointer;
+      padding: 0 4px; display: grid; place-items: center;
     }
-    .add-btn:active { transform: scale(.94); }
+    .add-btn:active { opacity: .5; }
+    .done-btn {
+      background: transparent; border: none; color: var(--accent);
+      font-size: 16px; font-weight: 700; cursor: pointer; padding: 4px 6px;
+    }
+    .hidden { display: none !important; }
 
     /* --- ウィジェットのグリッド --- */
     .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 12px; }
@@ -60,12 +65,41 @@
       box-shadow: 0 4px 16px rgba(0,0,0,.25);
       min-width: 0;
     }
+    .widget { position: relative; }
     .widget.span1 { grid-column: span 1; }
     .widget.span2 { grid-column: 1 / -1; }
-    /* 長押しメニュー用：カードの誤選択を防ぐ（入力欄では選択を許可） */
+    /* 編集モード用：カードの誤選択を防ぐ（入力欄では選択を許可） */
     .widget { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
     .widget input, .widget textarea { -webkit-user-select: text; user-select: text; }
-    .widget.pressing { transform: scale(.98); transition: transform .12s; }
+    .widget.pressing { transform: scale(.97); transition: transform .12s; }
+
+    /* --- iPhone風 編集モード（ぷるぷる） --- */
+    @keyframes jiggle {
+      0% { transform: rotate(-0.8deg); }
+      50% { transform: rotate(0.8deg); }
+      100% { transform: rotate(-0.8deg); }
+    }
+    .grid.editing .widget { animation: jiggle .26s infinite ease-in-out; }
+    .grid.editing .widget:nth-child(2n) { animation-delay: -.13s; animation-duration: .3s; }
+    .grid.editing .widget:nth-child(3n) { animation-delay: -.07s; animation-duration: .24s; }
+    .grid.editing .widget.dragging { animation: none; }
+    /* 編集中の操作バッジ（−削除 / ⤢大きさ） */
+    .edit-badge {
+      position: absolute; width: 26px; height: 26px; border-radius: 50%;
+      border: none; display: none; place-items: center; cursor: pointer;
+      font-size: 18px; font-weight: 800; z-index: 6; line-height: 1;
+      box-shadow: 0 2px 6px rgba(0,0,0,.4);
+    }
+    .grid.editing .edit-badge { display: grid; }
+    .del-badge { top: -8px; left: -8px; background: #ef4444; color: #fff; }
+    .size-badge { top: -8px; right: -8px; background: #334155; color: #e2e8f0; font-size: 14px; }
+    /* ドラッグ中に浮くカード */
+    .widget.dragging { opacity: .96; box-shadow: 0 12px 30px rgba(0,0,0,.5); transform: scale(1.04); }
+    /* 並べ替え時の受け皿 */
+    .widget.placeholder { background: transparent; outline: 2px dashed #3b4d6b; outline-offset: -2px; box-shadow: none; pointer-events: none; }
+
+    /* --- 時計ウィジェット --- */
+    .clock-widget { text-align: center; padding: 4px 0; }
     .card-title {
       display: flex; align-items: center; gap: 8px;
       font-size: 15px; color: var(--muted);
@@ -222,15 +256,9 @@
   </style>
 </head>
 <body>
-  <!-- 時計 -->
-  <div class="hero">
-    <div class="greeting" id="greeting">こんにちは</div>
-    <div class="clock" id="clock">--:--<span class="sec" id="sec">00</span></div>
-    <div class="date" id="date">----年--月--日</div>
-  </div>
-
-  <!-- 追加ボタン（右上の＋だけ） -->
+  <!-- ツールバー（右上）：通常は無色の＋、編集中は「完了」 -->
   <div class="toolbar">
+    <button class="done-btn hidden" id="done-btn">完了</button>
     <button class="add-btn" id="add-btn" aria-label="ウィジェットを追加">＋</button>
   </div>
 
@@ -260,20 +288,6 @@
     <div class="add-list" id="add-widget-list"></div>
     <div class="dialog-actions">
       <button class="small-btn" id="add-widget-cancel">閉じる</button>
-    </div>
-  </dialog>
-
-  <!-- 長押しメニュー（大きさ変更・並べ替え・削除） -->
-  <dialog id="widget-menu">
-    <h3 id="wm-title">ウィジェット</h3>
-    <div class="add-list">
-      <button type="button" data-act="size" id="wm-size">⬛ 大きくする</button>
-      <button type="button" data-act="up">↑ 上へ移動</button>
-      <button type="button" data-act="down">↓ 下へ移動</button>
-      <button type="button" data-act="remove" class="danger-btn">× 削除する</button>
-    </div>
-    <div class="dialog-actions">
-      <button class="small-btn" id="wm-cancel">閉じる</button>
     </div>
   </dialog>
 
