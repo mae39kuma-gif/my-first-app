@@ -533,33 +533,20 @@ const DEFAULT_LAYOUT = [
 ];
 let layout = store.get("dash_layout", DEFAULT_LAYOUT)
   .filter((it) => WIDGETS[it.id]); // 知らないウィジェットは無視
-let editMode = false;
 function saveLayout() { store.set("dash_layout", layout); }
 
 const grid = $("#grid");
 
 function renderGrid() {
-  grid.className = "grid" + (editMode ? " editing" : "");
-  let html = layout
-    .map((item, idx) => {
+  grid.className = "grid";
+  grid.innerHTML = layout
+    .map((item) => {
       const w = WIDGETS[item.id];
       if (!w) return "";
       const span = item.size === "sm" ? "span1" : "span2";
-      const controls = editMode
-        ? `<div class="w-controls">
-             <button class="w-btn w-up" data-act="up" ${idx === 0 ? "disabled" : ""}>↑</button>
-             <button class="w-btn w-down" data-act="down" ${idx === layout.length - 1 ? "disabled" : ""}>↓</button>
-             <button class="w-btn w-size" data-act="size">${item.size === "lg" ? "⬚ 小さく" : "⬛ 大きく"}</button>
-             <button class="w-btn w-remove" data-act="remove">× 消す</button>
-           </div>`
-        : "";
-      return `<div class="card widget ${span}" data-id="${item.id}">${controls}${w.body()}</div>`;
+      return `<div class="card widget ${span}" data-id="${item.id}">${w.body()}</div>`;
     })
     .join("");
-  if (editMode) {
-    html += `<button class="card widget span2 add-widget" type="button" id="add-widget-btn">＋ ウィジェットを追加</button>`;
-  }
-  grid.innerHTML = html;
   // 中身のデータを流し込む
   renderWeather();
   renderWeekly();
@@ -575,43 +562,92 @@ function renderGrid() {
   restoreMemo();
 }
 
-// ---------- 編集モードの切り替え ----------
-$("#edit-toggle").addEventListener("click", () => {
-  editMode = !editMode;
-  const btn = $("#edit-toggle");
-  btn.textContent = editMode ? "✓ 完了" : "✏️ 編集";
-  btn.classList.toggle("active", editMode);
-  renderGrid();
+// ---------- 右上「＋」ボタンでウィジェット追加 ----------
+$("#add-btn").addEventListener("click", openAddWidget);
+
+// ==================================================================
+//  長押しでウィジェットのメニュー（大きさ変更・並べ替え・削除）を開く
+// ==================================================================
+const widgetMenu = $("#widget-menu");
+let menuTargetId = null;
+let pressTimer = null;
+let pressCard = null;
+let suppressClick = false;
+
+function openWidgetMenu(id) {
+  const item = layout.find((it) => it.id === id);
+  if (!item) return;
+  menuTargetId = id;
+  $("#wm-title").textContent = WIDGETS[id] ? WIDGETS[id].title : "ウィジェット";
+  $("#wm-size").textContent = item.size === "lg" ? "⬚ 小さくする" : "⬛ 大きくする";
+  widgetMenu.showModal();
+}
+function cancelPress() {
+  if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+  if (pressCard) { pressCard.classList.remove("pressing"); pressCard = null; }
+}
+grid.addEventListener("pointerdown", (e) => {
+  const card = e.target.closest(".widget");
+  if (!card) return;
+  // 入力欄・リンク・ボタン・チェックの上では長押しメニューを出さない（普通に操作できるように）
+  if (e.target.closest("input, textarea, a, button, .todo-check")) return;
+  const id = card.dataset.id;
+  pressCard = card;
+  card.classList.add("pressing");
+  pressTimer = setTimeout(() => {
+    pressTimer = null;
+    suppressClick = true; // 直後のクリックを無効化
+    cancelPress();
+    if (navigator.vibrate) navigator.vibrate(15);
+    openWidgetMenu(id);
+  }, 500);
 });
+grid.addEventListener("pointerup", cancelPress);
+grid.addEventListener("pointermove", cancelPress);
+grid.addEventListener("pointercancel", cancelPress);
+window.addEventListener("scroll", cancelPress, true);
+// パソコンの右クリックでもメニューを出す
+grid.addEventListener("contextmenu", (e) => {
+  const card = e.target.closest(".widget");
+  if (!card) return;
+  if (e.target.closest("input, textarea")) return;
+  e.preventDefault();
+  openWidgetMenu(card.dataset.id);
+});
+
+// メニュー内のボタン
+widgetMenu.addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-act]");
+  if (!btn) return;
+  const idx = layout.findIndex((it) => it.id === menuTargetId);
+  if (idx < 0) return;
+  const act = btn.dataset.act;
+  if (act === "size") {
+    layout[idx].size = layout[idx].size === "lg" ? "sm" : "lg";
+    $("#wm-size").textContent = layout[idx].size === "lg" ? "⬚ 小さくする" : "⬛ 大きくする";
+    saveLayout();
+    renderGrid();
+  } else if (act === "up" && idx > 0) {
+    [layout[idx - 1], layout[idx]] = [layout[idx], layout[idx - 1]];
+    saveLayout();
+    renderGrid();
+  } else if (act === "down" && idx < layout.length - 1) {
+    [layout[idx + 1], layout[idx]] = [layout[idx], layout[idx + 1]];
+    saveLayout();
+    renderGrid();
+  } else if (act === "remove") {
+    layout.splice(idx, 1);
+    saveLayout();
+    renderGrid();
+    widgetMenu.close();
+  }
+});
+$("#wm-cancel").addEventListener("click", () => widgetMenu.close());
 
 // ---------- グリッド内のクリックをまとめて処理（イベント委譲）----------
 grid.addEventListener("click", (e) => {
-  // --- 編集コントロール ---
-  const ctrl = e.target.closest(".w-controls .w-btn");
-  if (ctrl) {
-    const id = ctrl.closest(".widget").dataset.id;
-    const idx = layout.findIndex((it) => it.id === id);
-    if (idx < 0) return;
-    const act = ctrl.dataset.act;
-    if (act === "up" && idx > 0) {
-      [layout[idx - 1], layout[idx]] = [layout[idx], layout[idx - 1]];
-    } else if (act === "down" && idx < layout.length - 1) {
-      [layout[idx + 1], layout[idx]] = [layout[idx], layout[idx + 1]];
-    } else if (act === "size") {
-      layout[idx].size = layout[idx].size === "lg" ? "sm" : "lg";
-    } else if (act === "remove") {
-      layout.splice(idx, 1);
-    }
-    saveLayout();
-    renderGrid();
-    return;
-  }
-
-  // --- ウィジェット追加ボタン ---
-  if (e.target.closest("#add-widget-btn")) {
-    openAddWidget();
-    return;
-  }
+  // 長押しメニューを開いた直後のクリックは無視する
+  if (suppressClick) { suppressClick = false; e.preventDefault(); return; }
 
   // --- ToDo ---
   const check = e.target.closest(".todo-check");
