@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>マイダッシュボード</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --card2: #273449;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent2: #34d399;
+      --danger: #f87171;
+      --up: #4ade80;
+      --down: #f87171;
+      --radius: 18px;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: env(safe-area-inset-top) 14px calc(env(safe-area-inset-bottom) + 24px) 14px;
+      max-width: 640px;
+      margin: 0 auto;
+      min-height: 100vh;
+    }
+    h1, h2, h3 { margin: 0; font-weight: 700; }
+    .muted { color: var(--muted); }
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-top: 14px;
+      box-shadow: 0 4px 16px rgba(0,0,0,.25);
+    }
+    .card-title {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 15px; color: var(--muted);
+      margin-bottom: 12px; font-weight: 600;
+    }
+
+    /* --- ヘッダー(時計) --- */
+    .hero { text-align: center; padding: 22px 10px 6px; }
+    .greeting { font-size: 16px; color: var(--muted); }
+    .clock { font-size: 64px; font-weight: 800; letter-spacing: 1px; line-height: 1.05; font-variant-numeric: tabular-nums; }
+    .clock .sec { font-size: 26px; color: var(--accent); vertical-align: 6px; }
+    .date { font-size: 16px; color: var(--muted); margin-top: 2px; }
+
+    /* --- 天気 --- */
+    .weather-main { display: flex; align-items: center; gap: 14px; }
+    .weather-icon { font-size: 48px; line-height: 1; }
+    .weather-temp { font-size: 40px; font-weight: 800; }
+    .weather-desc { color: var(--muted); font-size: 14px; }
+    .weather-range { display: flex; gap: 14px; margin-top: 10px; font-size: 14px; }
+    .weather-range b { color: var(--text); }
+
+    /* --- 市場指標 --- */
+    .market-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .m-item { background: var(--card2); border-radius: 12px; padding: 10px 12px; }
+    .m-label { font-size: 12px; color: var(--muted); }
+    .m-value { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .m-change { font-size: 12px; font-variant-numeric: tabular-nums; }
+    .up { color: #4ade80; }
+    .down { color: #f87171; }
+
+    /* --- ToDo --- */
+    .row { display: flex; gap: 8px; }
+    input[type="text"] {
+      flex: 1; min-width: 0;
+      background: var(--card2); border: 1px solid #334155; color: var(--text);
+      border-radius: 12px; padding: 12px 14px; font-size: 16px;
+    }
+    input[type="text"]:focus { outline: none; border-color: var(--accent); }
+    button {
+      border: none; border-radius: 12px; padding: 12px 16px;
+      font-size: 16px; font-weight: 700; cursor: pointer;
+      background: var(--accent); color: #06283d;
+    }
+    button:active { transform: scale(.97); }
+    .todo-list { list-style: none; margin: 12px 0 0; padding: 0; }
+    .todo-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 11px 4px; border-bottom: 1px solid #2b3a52;
+    }
+    .todo-item:last-child { border-bottom: none; }
+    .todo-check {
+      width: 24px; height: 24px; flex: none; border-radius: 7px;
+      border: 2px solid #475569; display: grid; place-items: center;
+      cursor: pointer; font-size: 15px; color: #06283d;
+    }
+    .todo-item.done .todo-check { background: var(--accent2); border-color: var(--accent2); }
+    .todo-text { flex: 1; font-size: 16px; word-break: break-word; }
+    .todo-item.done .todo-text { text-decoration: line-through; color: var(--muted); }
+    .todo-del { background: none; color: var(--muted); padding: 6px; font-size: 18px; }
+    .empty { color: var(--muted); font-size: 14px; padding: 8px 4px; }
+
+    /* --- メモ --- */
+    textarea {
+      width: 100%; min-height: 120px; resize: vertical;
+      background: var(--card2); border: 1px solid #334155; color: var(--text);
+      border-radius: 12px; padding: 12px 14px; font-size: 16px; line-height: 1.6;
+      font-family: inherit;
+    }
+    textarea:focus { outline: none; border-color: var(--accent); }
+    .saved-hint { font-size: 12px; color: var(--accent2); height: 16px; margin-top: 4px; }
+
+    /* --- リンク集 --- */
+    .links-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 10px; }
+    .link-tile {
+      background: var(--card2); border-radius: 14px; padding: 14px 6px;
+      text-align: center; text-decoration: none; color: var(--text);
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      position: relative; overflow: hidden;
+    }
+    .link-emoji { font-size: 28px; line-height: 1; }
+    .link-name { font-size: 12px; color: var(--muted); width: 100%;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .link-del {
+      position: absolute; top: 2px; right: 4px; background: none; color: var(--muted);
+      padding: 2px 6px; font-size: 14px; border-radius: 8px;
+    }
+    .link-add { border: 2px dashed #3b4d6b; background: transparent; }
+    .link-add .link-emoji { color: var(--muted); }
+
+    .small-btn { background: var(--card2); color: var(--muted); font-size: 13px; padding: 8px 12px; }
+
+    dialog {
+      background: var(--card); color: var(--text); border: none; border-radius: 16px;
+      padding: 18px; width: min(90vw, 360px);
+    }
+    dialog::backdrop { background: rgba(0,0,0,.6); }
+    dialog input { margin-top: 10px; width: 100%; }
+    .dialog-actions { display: flex; gap: 8px; margin-top: 14px; }
+    .dialog-actions button { flex: 1; }
+
+    footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 22px; }
+    footer a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <!-- 時計 -->
+  <div class="hero">
+    <div class="greeting" id="greeting">こんにちは</div>
+    <div class="clock" id="clock">--:--<span class="sec" id="sec">00</span></div>
+    <div class="date" id="date">----年--月--日</div>
+  </div>
+
+  <!-- 天気 -->
+  <div class="card">
+    <div class="card-title">☀️ 天気</div>
+    <div id="weather">
+      <div class="muted" id="weather-loading">位置情報を取得中…</div>
+    </div>
+  </div>
+
+  <!-- 市場指標 -->
+  <div class="card">
+    <div class="card-title" style="justify-content: space-between;">
+      <span>📈 マーケット</span>
+      <button class="small-btn" id="market-refresh">更新</button>
+    </div>
+    <div class="market-grid" id="market">
+      <div class="muted" style="grid-column: 1 / -1;">読み込み中…</div>
+    </div>
+    <div class="muted" id="market-time" style="font-size: 11px; margin-top: 8px;"></div>
+  </div>
+
+  <!-- ToDo -->
+  <div class="card">
+    <div class="card-title">✅ やること</div>
+    <div class="row">
+      <input type="text" id="todo-input" placeholder="タスクを追加…" maxlength="120" />
+      <button id="todo-add">追加</button>
+    </div>
+    <ul class="todo-list" id="todo-list"></ul>
+  </div>
+
+  <!-- メモ -->
+  <div class="card">
+    <div class="card-title">📝 メモ</div>
+    <textarea id="memo" placeholder="ひとことメモ…自動で保存されます"></textarea>
+    <div class="saved-hint" id="memo-saved"></div>
+  </div>
+
+  <!-- リンク集 -->
+  <div class="card">
+    <div class="card-title">🔗 ショートカット</div>
+    <div class="links-grid" id="links"></div>
+  </div>
+
+  <footer>
+    マイダッシュボード · データはこの端末に保存されます<br />
+    <a href="/">いまなにしてる？へ →</a>
+  </footer>
+
+  <!-- リンク追加ダイアログ -->
+  <dialog id="link-dialog">
+    <h3>ショートカットを追加</h3>
+    <input type="text" id="link-name" placeholder="名前（例：YouTube）" maxlength="20" />
+    <input type="text" id="link-url" placeholder="URL（例：https://youtube.com）" />
+    <input type="text" id="link-emoji" placeholder="絵文字（例：📺 ／ 空欄でも可）" maxlength="4" />
+    <div class="dialog-actions">
+      <button class="small-btn" id="link-cancel">キャンセル</button>
+      <button id="link-save">追加</button>
+    </div>
+  </dialog>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>

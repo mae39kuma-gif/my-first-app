@@ -8,6 +8,7 @@
 //   もう片方の画面に「○○さんが【勉強中】になりました」と通知が飛びます。
 
 const http = require("http");
+const https = require("https");
 const fs = require("fs");
 const path = require("path");
 const webpush = require("web-push");
@@ -118,6 +119,60 @@ async function loadState() {
   } catch (e) {
     console.log("読み込みに失敗:", e.message);
   }
+}
+
+// --- 市場指標(日経平均など)を Yahoo Finance から取得する ---
+// ブラウザから直接だと CORS で弾かれるので、サーバー側で代理取得して返す。
+// 前日終値も取れるので「前日比」を正しく出せる。短時間に何度も外部へ
+// 問い合わせないよう、60秒キャッシュする。
+const MARKET_SYMBOLS = [
+  { symbol: "^N225", label: "日経平均" },
+  { symbol: "^DJI", label: "NYダウ" },
+  { symbol: "^GSPC", label: "S&P500" },
+  { symbol: "JPY=X", label: "ドル円" },
+];
+let marketCache = { time: 0, data: null };
+
+function httpsGetText(url) {
+  return new Promise((resolve, reject) => {
+    const options = { timeout: 8000, headers: { "User-Agent": "Mozilla/5.0" } };
+    const req = https.get(url, options, (res) => {
+      let body = "";
+      res.on("data", (c) => (body += c));
+      res.on("end", () => resolve(body));
+    });
+    req.on("timeout", () => req.destroy(new Error("timeout")));
+    req.on("error", reject);
+  });
+}
+
+// 1銘柄ぶんを取得する（失敗しても null を返して全体を止めない）
+async function fetchOne(m) {
+  try {
+    const url =
+      `https://query1.finance.yahoo.com/v8/finance/chart/` +
+      `${encodeURIComponent(m.symbol)}?interval=1d&range=1d`;
+    const json = JSON.parse(await httpsGetText(url));
+    const meta = json?.chart?.result?.[0]?.meta;
+    const price = meta?.regularMarketPrice;
+    const prev = meta?.chartPreviousClose;
+    if (!isFinite(price)) return { label: m.label, value: null, change: null, changePct: null };
+    const change = isFinite(prev) ? price - prev : null;
+    const changePct = change !== null && prev ? (change / prev) * 100 : null;
+    return { label: m.label, value: price, change, changePct };
+  } catch (e) {
+    return { label: m.label, value: null, change: null, changePct: null };
+  }
+}
+
+async function fetchMarket() {
+  // 60秒以内のキャッシュがあればそれを返す
+  if (marketCache.data && Date.now() - marketCache.time < 60 * 1000) {
+    return marketCache.data;
+  }
+  const data = await Promise.all(MARKET_SYMBOLS.map(fetchOne));
+  marketCache = { time: Date.now(), data };
+  return data;
 }
 
 const PUBLIC_DIR = path.join(__dirname, "public");
@@ -467,6 +522,25 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ ok: true }));
     return;
+  }
+
+  // --- 市場指標(日経平均など)を返す ---
+  if (req.url === "/market") {
+    fetchMarket()
+      .then((data) => {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: true, data }));
+      })
+      .catch((e) => {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: false, error: e.message, data: null }));
+      });
+    return;
+  }
+
+  // --- 自分用のスマホダッシュボード ---
+  if (req.url === "/dashboard" || req.url === "/dashboard/") {
+    req.url = "/dashboard.html";
   }
 
   // --- ご主人用の監視画面 ---
