@@ -17,8 +17,6 @@
       --accent: #38bdf8;
       --accent2: #34d399;
       --danger: #f87171;
-      --up: #4ade80;
-      --down: #f87171;
       --radius: 18px;
     }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -34,18 +32,6 @@
     }
     h1, h2, h3 { margin: 0; font-weight: 700; }
     .muted { color: var(--muted); }
-    .card {
-      background: var(--card);
-      border-radius: var(--radius);
-      padding: 16px;
-      margin-top: 14px;
-      box-shadow: 0 4px 16px rgba(0,0,0,.25);
-    }
-    .card-title {
-      display: flex; align-items: center; gap: 8px;
-      font-size: 15px; color: var(--muted);
-      margin-bottom: 12px; font-weight: 600;
-    }
 
     /* --- ヘッダー(時計) --- */
     .hero { text-align: center; padding: 22px 10px 6px; }
@@ -54,19 +40,63 @@
     .clock .sec { font-size: 26px; color: var(--accent); vertical-align: 6px; }
     .date { font-size: 16px; color: var(--muted); margin-top: 2px; }
 
+    /* --- ツールバー --- */
+    .toolbar { display: flex; justify-content: flex-end; margin-top: 8px; }
+    .edit-toggle {
+      background: var(--card2); color: var(--text); border: none; border-radius: 999px;
+      padding: 9px 16px; font-size: 14px; font-weight: 700; cursor: pointer;
+    }
+    .edit-toggle.active { background: var(--accent2); color: #06283d; }
+
+    /* --- ウィジェットのグリッド --- */
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 12px; }
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: 0 4px 16px rgba(0,0,0,.25);
+      min-width: 0;
+    }
+    .widget.span1 { grid-column: span 1; }
+    .widget.span2 { grid-column: 1 / -1; }
+    .grid.editing .widget { outline: 2px dashed #3b4d6b; outline-offset: -2px; }
+    .card-title {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 15px; color: var(--muted);
+      margin-bottom: 12px; font-weight: 600;
+    }
+
+    /* --- 編集用コントロール --- */
+    .w-controls {
+      display: flex; gap: 6px; flex-wrap: wrap;
+      margin: -4px -4px 10px; padding-bottom: 10px;
+      border-bottom: 1px solid #2b3a52;
+    }
+    .w-btn {
+      background: var(--card2); color: var(--text); border: none; border-radius: 9px;
+      padding: 7px 9px; font-size: 12px; font-weight: 700; cursor: pointer; flex: 1;
+      white-space: nowrap;
+    }
+    .w-btn:disabled { opacity: .35; }
+    .w-btn.w-remove { color: var(--danger); }
+    .add-widget {
+      border: 2px dashed #3b4d6b; background: transparent; color: var(--muted);
+      font-size: 15px; font-weight: 700; cursor: pointer; padding: 20px;
+    }
+
     /* --- 天気 --- */
     .weather-main { display: flex; align-items: center; gap: 14px; }
-    .weather-icon { font-size: 48px; line-height: 1; }
-    .weather-temp { font-size: 40px; font-weight: 800; }
+    .weather-icon { font-size: 44px; line-height: 1; }
+    .weather-temp { font-size: 38px; font-weight: 800; }
     .weather-desc { color: var(--muted); font-size: 14px; }
-    .weather-range { display: flex; gap: 14px; margin-top: 10px; font-size: 14px; }
+    .weather-range { display: flex; gap: 12px; margin-top: 10px; font-size: 13px; flex-wrap: wrap; }
     .weather-range b { color: var(--text); }
 
     /* --- 市場指標 --- */
     .market-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .m-item { background: var(--card2); border-radius: 12px; padding: 10px 12px; }
     .m-label { font-size: 12px; color: var(--muted); }
-    .m-value { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .m-value { font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; }
     .m-change { font-size: 12px; font-variant-numeric: tabular-nums; }
     .up { color: #4ade80; }
     .down { color: #f87171; }
@@ -79,7 +109,7 @@
       border-radius: 12px; padding: 12px 14px; font-size: 16px;
     }
     input[type="text"]:focus { outline: none; border-color: var(--accent); }
-    button {
+    button.primary {
       border: none; border-radius: 12px; padding: 12px 16px;
       font-size: 16px; font-weight: 700; cursor: pointer;
       background: var(--accent); color: #06283d;
@@ -99,12 +129,12 @@
     .todo-item.done .todo-check { background: var(--accent2); border-color: var(--accent2); }
     .todo-text { flex: 1; font-size: 16px; word-break: break-word; }
     .todo-item.done .todo-text { text-decoration: line-through; color: var(--muted); }
-    .todo-del { background: none; color: var(--muted); padding: 6px; font-size: 18px; }
+    .todo-del { background: none; border: none; color: var(--muted); padding: 6px; font-size: 18px; cursor: pointer; }
     .empty { color: var(--muted); font-size: 14px; padding: 8px 4px; }
 
     /* --- メモ --- */
     textarea {
-      width: 100%; min-height: 120px; resize: vertical;
+      width: 100%; min-height: 110px; resize: vertical;
       background: var(--card2); border: 1px solid #334155; color: var(--text);
       border-radius: 12px; padding: 12px 14px; font-size: 16px; line-height: 1.6;
       font-family: inherit;
@@ -113,24 +143,24 @@
     .saved-hint { font-size: 12px; color: var(--accent2); height: 16px; margin-top: 4px; }
 
     /* --- リンク集 --- */
-    .links-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 10px; }
+    .links-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 10px; }
     .link-tile {
       background: var(--card2); border-radius: 14px; padding: 14px 6px;
       text-align: center; text-decoration: none; color: var(--text);
       display: flex; flex-direction: column; align-items: center; gap: 6px;
       position: relative; overflow: hidden;
     }
-    .link-emoji { font-size: 28px; line-height: 1; }
+    .link-emoji { font-size: 26px; line-height: 1; }
     .link-name { font-size: 12px; color: var(--muted); width: 100%;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .link-del {
-      position: absolute; top: 2px; right: 4px; background: none; color: var(--muted);
-      padding: 2px 6px; font-size: 14px; border-radius: 8px;
+      position: absolute; top: 2px; right: 4px; background: none; border: none; color: var(--muted);
+      padding: 2px 6px; font-size: 14px; border-radius: 8px; cursor: pointer;
     }
-    .link-add { border: 2px dashed #3b4d6b; background: transparent; }
+    .link-add { border: 2px dashed #3b4d6b; background: transparent; cursor: pointer; }
     .link-add .link-emoji { color: var(--muted); }
 
-    .small-btn { background: var(--card2); color: var(--muted); font-size: 13px; padding: 8px 12px; }
+    .small-btn { background: var(--card2); color: var(--muted); border: none; border-radius: 10px; font-size: 13px; padding: 8px 12px; cursor: pointer; }
 
     dialog {
       background: var(--card); color: var(--text); border: none; border-radius: 16px;
@@ -140,6 +170,11 @@
     dialog input { margin-top: 10px; width: 100%; }
     .dialog-actions { display: flex; gap: 8px; margin-top: 14px; }
     .dialog-actions button { flex: 1; }
+    .add-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+    .add-list button {
+      text-align: left; background: var(--card2); color: var(--text); border: none;
+      border-radius: 12px; padding: 13px 14px; font-size: 15px; cursor: pointer;
+    }
 
     footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 22px; }
     footer a { color: var(--accent); }
@@ -153,48 +188,13 @@
     <div class="date" id="date">----年--月--日</div>
   </div>
 
-  <!-- 天気 -->
-  <div class="card">
-    <div class="card-title">☀️ 天気</div>
-    <div id="weather">
-      <div class="muted" id="weather-loading">位置情報を取得中…</div>
-    </div>
+  <!-- 編集ボタン -->
+  <div class="toolbar">
+    <button class="edit-toggle" id="edit-toggle">✏️ 編集</button>
   </div>
 
-  <!-- 市場指標 -->
-  <div class="card">
-    <div class="card-title" style="justify-content: space-between;">
-      <span>📈 マーケット</span>
-      <button class="small-btn" id="market-refresh">更新</button>
-    </div>
-    <div class="market-grid" id="market">
-      <div class="muted" style="grid-column: 1 / -1;">読み込み中…</div>
-    </div>
-    <div class="muted" id="market-time" style="font-size: 11px; margin-top: 8px;"></div>
-  </div>
-
-  <!-- ToDo -->
-  <div class="card">
-    <div class="card-title">✅ やること</div>
-    <div class="row">
-      <input type="text" id="todo-input" placeholder="タスクを追加…" maxlength="120" />
-      <button id="todo-add">追加</button>
-    </div>
-    <ul class="todo-list" id="todo-list"></ul>
-  </div>
-
-  <!-- メモ -->
-  <div class="card">
-    <div class="card-title">📝 メモ</div>
-    <textarea id="memo" placeholder="ひとことメモ…自動で保存されます"></textarea>
-    <div class="saved-hint" id="memo-saved"></div>
-  </div>
-
-  <!-- リンク集 -->
-  <div class="card">
-    <div class="card-title">🔗 ショートカット</div>
-    <div class="links-grid" id="links"></div>
-  </div>
+  <!-- ウィジェット置き場（中身はJSで作ります） -->
+  <div class="grid" id="grid"></div>
 
   <footer>
     マイダッシュボード · データはこの端末に保存されます<br />
@@ -209,7 +209,16 @@
     <input type="text" id="link-emoji" placeholder="絵文字（例：📺 ／ 空欄でも可）" maxlength="4" />
     <div class="dialog-actions">
       <button class="small-btn" id="link-cancel">キャンセル</button>
-      <button id="link-save">追加</button>
+      <button class="primary" id="link-save">追加</button>
+    </div>
+  </dialog>
+
+  <!-- ウィジェット追加ダイアログ -->
+  <dialog id="add-widget-dialog">
+    <h3>ウィジェットを追加</h3>
+    <div class="add-list" id="add-widget-list"></div>
+    <div class="dialog-actions">
+      <button class="small-btn" id="add-widget-cancel">閉じる</button>
     </div>
   </dialog>
 
