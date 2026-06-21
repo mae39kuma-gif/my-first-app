@@ -160,6 +160,56 @@
     .link-add { border: 2px dashed #3b4d6b; background: transparent; cursor: pointer; }
     .link-add .link-emoji { color: var(--muted); }
 
+    .accent { color: var(--accent); }
+    input[type="date"] {
+      background: var(--card2); border: 1px solid #334155; color: var(--text);
+      border-radius: 12px; padding: 11px 12px; font-size: 15px; font-family: inherit;
+    }
+    input[type="date"]:focus { outline: none; border-color: var(--accent); }
+
+    /* --- 週間天気 --- */
+    .wk-row { display: flex; align-items: center; gap: 8px; padding: 8px 2px; border-bottom: 1px solid #2b3a52; font-size: 14px; }
+    .wk-row:last-child { border-bottom: none; }
+    .wk-day { width: 64px; color: var(--muted); }
+    .wk-ico { font-size: 20px; width: 28px; text-align: center; }
+    .wk-pop { width: 46px; color: var(--accent); font-size: 13px; }
+    .wk-temp { flex: 1; text-align: right; font-variant-numeric: tabular-nums; }
+    .wk-temp b { color: var(--text); }
+
+    /* --- 日の出・日の入り --- */
+    .sun-main { display: flex; gap: 12px; }
+    .sun-item { flex: 1; display: flex; align-items: center; gap: 12px; background: var(--card2); border-radius: 12px; padding: 12px 14px; }
+    .sun-ico { font-size: 30px; }
+    .sun-time { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+    /* --- ニュース --- */
+    .news-item { display: flex; gap: 8px; align-items: flex-start; padding: 10px 2px; border-bottom: 1px solid #2b3a52; text-decoration: none; color: var(--text); }
+    .news-item:last-child { border-bottom: none; }
+    .news-dot { color: var(--accent); }
+    .news-title { font-size: 14px; line-height: 1.45; }
+
+    /* --- カウントダウン --- */
+    .cd-form { flex-wrap: wrap; }
+    .cd-list { list-style: none; margin: 12px 0 0; padding: 0; }
+    .cd-row { display: flex; align-items: center; gap: 10px; padding: 10px 2px; border-bottom: 1px solid #2b3a52; }
+    .cd-row:last-child { border-bottom: none; }
+    .cd-name { flex: 1; font-size: 15px; word-break: break-word; }
+    .cd-badge { font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .cd-del, .habit-del { background: none; border: none; color: var(--muted); padding: 4px 6px; font-size: 18px; cursor: pointer; }
+
+    /* --- 習慣トラッカー --- */
+    .habit-list { list-style: none; margin: 12px 0 0; padding: 0; }
+    .habit-row { display: flex; align-items: center; gap: 10px; padding: 9px 2px; border-bottom: 1px solid #2b3a52; }
+    .habit-row:last-child { border-bottom: none; }
+    .habit-toggle {
+      width: 30px; height: 30px; flex: none; border-radius: 9px;
+      border: 2px solid #475569; background: transparent; color: #06283d;
+      display: grid; place-items: center; cursor: pointer; font-size: 16px; font-weight: 800;
+    }
+    .habit-toggle.done { background: var(--accent2); border-color: var(--accent2); }
+    .habit-name { flex: 1; font-size: 15px; word-break: break-word; }
+    .habit-streak { font-size: 14px; color: #fb923c; font-weight: 700; }
+
     .small-btn { background: var(--card2); color: var(--muted); border: none; border-radius: 10px; font-size: 13px; padding: 8px 12px; cursor: pointer; }
 
     dialog {

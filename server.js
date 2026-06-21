@@ -175,6 +175,71 @@ async function fetchMarket() {
   return data;
 }
 
+// --- 為替(複数通貨ペア)も Yahoo Finance から取得 ---
+const FX_SYMBOLS = [
+  { symbol: "EURJPY=X", label: "ユーロ円" },
+  { symbol: "GBPJPY=X", label: "ポンド円" },
+  { symbol: "EURUSD=X", label: "ユーロドル" },
+];
+let fxCache = { time: 0, data: null };
+async function fetchFx() {
+  if (fxCache.data && Date.now() - fxCache.time < 60 * 1000) return fxCache.data;
+  const data = await Promise.all(FX_SYMBOLS.map(fetchOne));
+  fxCache = { time: Date.now(), data };
+  return data;
+}
+
+// --- 仮想通貨を CoinGecko から取得(APIキー不要) ---
+const CRYPTO = [
+  { id: "bitcoin", label: "ビットコイン" },
+  { id: "ethereum", label: "イーサリアム" },
+  { id: "solana", label: "ソラナ" },
+];
+let cryptoCache = { time: 0, data: null };
+async function fetchCrypto() {
+  if (cryptoCache.data && Date.now() - cryptoCache.time < 60 * 1000) return cryptoCache.data;
+  const ids = CRYPTO.map((c) => c.id).join(",");
+  const url = `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=jpy&include_24hr_change=true`;
+  const json = JSON.parse(await httpsGetText(url));
+  const data = CRYPTO.map((c) => {
+    const o = json[c.id] || {};
+    const value = isFinite(o.jpy) ? o.jpy : null;
+    const changePct = isFinite(o.jpy_24h_change) ? o.jpy_24h_change : null;
+    return { label: c.label, value, changePct };
+  });
+  cryptoCache = { time: Date.now(), data };
+  return data;
+}
+
+// --- ニュース見出しを RSS から取得 ---
+function decodeEntities(s) {
+  return s
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, "&");
+}
+let newsCache = { time: 0, data: null };
+async function fetchNews() {
+  // ニュースは5分キャッシュ
+  if (newsCache.data && Date.now() - newsCache.time < 5 * 60 * 1000) return newsCache.data;
+  const xml = await httpsGetText("https://news.yahoo.co.jp/rss/topics/top-picks.xml");
+  const items = [];
+  const re = /<item>([\s\S]*?)<\/item>/g;
+  let m;
+  while ((m = re.exec(xml)) && items.length < 8) {
+    const block = m[1];
+    const title = (block.match(/<title>([\s\S]*?)<\/title>/) || [])[1] || "";
+    const link = (block.match(/<link>([\s\S]*?)<\/link>/) || [])[1] || "";
+    if (title) items.push({ title: decodeEntities(title.trim()), link: link.trim() });
+  }
+  newsCache = { time: Date.now(), data: items };
+  return items;
+}
+
 const PUBLIC_DIR = path.join(__dirname, "public");
 
 // 静的ファイルの簡単な配信
@@ -524,9 +589,10 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // --- 市場指標(日経平均など)を返す ---
-  if (req.url === "/market") {
-    fetchMarket()
+  // --- 外部データ(指標・為替・仮想通貨・ニュース)を返す共通処理 ---
+  const feeds = { "/market": fetchMarket, "/fx": fetchFx, "/crypto": fetchCrypto, "/news": fetchNews };
+  if (feeds[req.url]) {
+    feeds[req.url]()
       .then((data) => {
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ ok: true, data }));

@@ -97,8 +97,8 @@ async function loadWeather(lat, lon) {
   try {
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
       `&current=temperature_2m,weather_code` +
-      `&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max` +
-      `&timezone=auto`;
+      `&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max,sunrise,sunset` +
+      `&timezone=auto&forecast_days=7`;
     const res = await fetch(url);
     weatherData = await res.json();
   } catch {
@@ -174,6 +174,198 @@ async function loadMarket() {
     marketData = "error";
   }
   renderMarket();
+}
+
+// ---------- 週間天気（天気データを使う） ----------
+function renderWeekly() {
+  const el = document.querySelector('.widget[data-id="weekly"] .weekly-body');
+  if (!el) return;
+  if (!weatherData || weatherData === "error" || !weatherData.daily) {
+    el.innerHTML = `<div class="muted">読み込み中…</div>`;
+    return;
+  }
+  const d = weatherData.daily;
+  const week = ["日", "月", "火", "水", "木", "金", "土"];
+  let rows = "";
+  for (let i = 0; i < (d.time?.length || 0); i++) {
+    const date = new Date(d.time[i] + "T00:00:00");
+    const wd = week[date.getDay()];
+    const [icon] = WEATHER[d.weather_code[i]] || ["🌡️"];
+    const label = i === 0 ? "今日" : `${date.getMonth() + 1}/${date.getDate()}(${wd})`;
+    rows += `<div class="wk-row">
+        <span class="wk-day">${label}</span>
+        <span class="wk-ico">${icon}</span>
+        <span class="wk-pop">${d.precipitation_probability_max?.[i] ?? "-"}%</span>
+        <span class="wk-temp"><b>${Math.round(d.temperature_2m_max[i])}°</b> / ${Math.round(d.temperature_2m_min[i])}°</span>
+      </div>`;
+  }
+  el.innerHTML = rows;
+}
+
+// ---------- 日の出・日の入り（天気データを使う） ----------
+function renderSun() {
+  const el = document.querySelector('.widget[data-id="sun"] .sun-body');
+  if (!el) return;
+  if (!weatherData || weatherData === "error" || !weatherData.daily?.sunrise) {
+    el.innerHTML = `<div class="muted">読み込み中…</div>`;
+    return;
+  }
+  const hm = (iso) => iso ? iso.slice(11, 16) : "--:--";
+  const rise = weatherData.daily.sunrise[0];
+  const set = weatherData.daily.sunset[0];
+  el.innerHTML = `<div class="sun-main">
+      <div class="sun-item"><div class="sun-ico">🌅</div><div><div class="muted">日の出</div><div class="sun-time">${hm(rise)}</div></div></div>
+      <div class="sun-item"><div class="sun-ico">🌇</div><div><div class="muted">日の入り</div><div class="sun-time">${hm(set)}</div></div></div>
+    </div>`;
+}
+
+// ---------- 仮想通貨 ----------
+let cryptoData = null;
+function renderQuoteList(selector, data) {
+  const box = document.querySelector(selector);
+  if (!box) return;
+  if (data === "error") { box.innerHTML = `<div class="muted" style="grid-column:1/-1;">取得できませんでした</div>`; return; }
+  if (!data) { box.innerHTML = `<div class="muted" style="grid-column:1/-1;">読み込み中…</div>`; return; }
+  box.innerHTML = data
+    .map((m) => {
+      const has = m.changePct !== null && m.changePct !== undefined;
+      const up = has && m.changePct >= 0;
+      const cls = !has ? "muted" : up ? "up" : "down";
+      const chg = has ? `${up ? "▲" : "▼"} ${Math.abs(m.changePct).toFixed(2)}%` : "—";
+      return `<div class="m-item">
+          <div class="m-label">${m.label}</div>
+          <div class="m-value">${fmtNum(m.value)}</div>
+          <div class="m-change ${cls}">${chg}</div>
+        </div>`;
+    })
+    .join("");
+}
+function renderCrypto() { renderQuoteList('.widget[data-id="crypto"] .crypto-body', cryptoData); }
+async function loadCrypto() {
+  try {
+    const json = await (await fetch("/crypto")).json();
+    cryptoData = json.ok && json.data ? json.data : "error";
+  } catch { cryptoData = "error"; }
+  renderCrypto();
+}
+
+// ---------- 為替 ----------
+let fxData = null;
+function renderFx() {
+  const box = document.querySelector('.widget[data-id="fx"] .fx-body');
+  if (!box) return;
+  if (fxData === "error") { box.innerHTML = `<div class="muted" style="grid-column:1/-1;">取得できませんでした</div>`; return; }
+  if (!fxData) { box.innerHTML = `<div class="muted" style="grid-column:1/-1;">読み込み中…</div>`; return; }
+  box.innerHTML = fxData
+    .map((m) => {
+      const has = m.change !== null && m.change !== undefined;
+      const up = has && m.change >= 0;
+      const cls = !has ? "muted" : up ? "up" : "down";
+      const chg = has ? `${up ? "▲" : "▼"} ${Math.abs(m.changePct).toFixed(2)}%` : "—";
+      return `<div class="m-item">
+          <div class="m-label">${m.label}</div>
+          <div class="m-value">${fmtNum(m.value)}</div>
+          <div class="m-change ${cls}">${chg}</div>
+        </div>`;
+    })
+    .join("");
+}
+async function loadFx() {
+  try {
+    const json = await (await fetch("/fx")).json();
+    fxData = json.ok && json.data ? json.data : "error";
+  } catch { fxData = "error"; }
+  renderFx();
+}
+
+// ---------- ニュース ----------
+let newsData = null;
+function renderNews() {
+  const box = document.querySelector('.widget[data-id="news"] .news-body');
+  if (!box) return;
+  if (newsData === "error") { box.innerHTML = `<div class="muted">取得できませんでした</div>`; return; }
+  if (!newsData) { box.innerHTML = `<div class="muted">読み込み中…</div>`; return; }
+  if (newsData.length === 0) { box.innerHTML = `<div class="muted">ニュースがありません</div>`; return; }
+  box.innerHTML = newsData
+    .map(
+      (n) => `<a class="news-item" href="${escapeAttr(n.link)}" target="_blank" rel="noopener">
+        <span class="news-dot">•</span><span class="news-title">${escapeHtml(n.title)}</span>
+      </a>`
+    )
+    .join("");
+}
+async function loadNews() {
+  try {
+    const json = await (await fetch("/news")).json();
+    newsData = json.ok && json.data ? json.data : "error";
+  } catch { newsData = "error"; }
+  renderNews();
+}
+
+// ---------- カウントダウン（この端末に保存） ----------
+let countdowns = store.get("dash_countdowns", []);
+function saveCountdowns() { store.set("dash_countdowns", countdowns); }
+function daysUntil(dateStr) {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const target = new Date(dateStr + "T00:00:00");
+  return Math.round((target - today) / 86400000);
+}
+function renderCountdown() {
+  const list = document.querySelector('.widget[data-id="countdown"] .cd-list');
+  if (!list) return;
+  if (countdowns.length === 0) { list.innerHTML = `<li class="empty">予定はありません</li>`; return; }
+  const sorted = countdowns
+    .map((c, i) => ({ ...c, i, days: daysUntil(c.date) }))
+    .sort((a, b) => a.days - b.days);
+  list.innerHTML = sorted
+    .map((c) => {
+      let badge, cls;
+      if (c.days > 0) { badge = `あと${c.days}日`; cls = "up"; }
+      else if (c.days === 0) { badge = "今日！"; cls = "accent"; }
+      else { badge = `${-c.days}日前`; cls = "muted"; }
+      return `<li class="cd-row">
+          <span class="cd-name">${escapeHtml(c.label)}</span>
+          <span class="cd-badge ${cls}">${badge}</span>
+          <button class="cd-del" data-del="${c.i}" aria-label="削除">×</button>
+        </li>`;
+    })
+    .join("");
+}
+
+// ---------- 習慣トラッカー（この端末に保存） ----------
+let habits = store.get("dash_habits", []);
+function saveHabits() { store.set("dash_habits", habits); }
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function streakOf(dates) {
+  const set = new Set(dates);
+  let streak = 0;
+  const d = new Date(); d.setHours(0, 0, 0, 0);
+  // 今日が未達成なら昨日から数える
+  const key = (x) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
+  if (!set.has(key(d))) d.setDate(d.getDate() - 1);
+  while (set.has(key(d))) { streak++; d.setDate(d.getDate() - 1); }
+  return streak;
+}
+function renderHabit() {
+  const list = document.querySelector('.widget[data-id="habit"] .habit-list');
+  if (!list) return;
+  if (habits.length === 0) { list.innerHTML = `<li class="empty">習慣を追加してみよう</li>`; return; }
+  const today = todayStr();
+  list.innerHTML = habits
+    .map((h, i) => {
+      const done = (h.dates || []).includes(today);
+      const streak = streakOf(h.dates || []);
+      return `<li class="habit-row">
+          <button class="habit-toggle ${done ? "done" : ""}" data-i="${i}">${done ? "✓" : ""}</button>
+          <span class="habit-name">${escapeHtml(h.name)}</span>
+          <span class="habit-streak">🔥${streak}</span>
+          <button class="habit-del" data-del="${i}" aria-label="削除">×</button>
+        </li>`;
+    })
+    .join("");
 }
 
 // ---------- ToDo ----------
@@ -276,14 +468,67 @@ const WIDGETS = {
     body: () => `<div class="card-title">🔗 ショートカット</div>
       <div class="links-grid"></div>`,
   },
+  weekly: {
+    title: "📅 週間天気",
+    body: () => `<div class="card-title">📅 週間天気</div>
+      <div class="weekly-body"><div class="muted">読み込み中…</div></div>`,
+  },
+  sun: {
+    title: "🌅 日の出・日の入り",
+    body: () => `<div class="card-title">🌅 日の出・日の入り</div>
+      <div class="sun-body"><div class="muted">読み込み中…</div></div>`,
+  },
+  crypto: {
+    title: "🪙 仮想通貨",
+    body: () => `<div class="card-title">🪙 仮想通貨</div>
+      <div class="market-grid crypto-body"><div class="muted" style="grid-column:1/-1;">読み込み中…</div></div>
+      <div class="muted" style="font-size:11px;margin-top:8px;">24時間変化 · 円建て</div>`,
+  },
+  fx: {
+    title: "💱 為替",
+    body: () => `<div class="card-title">💱 為替</div>
+      <div class="market-grid fx-body"><div class="muted" style="grid-column:1/-1;">読み込み中…</div></div>
+      <div class="muted" style="font-size:11px;margin-top:8px;">前日終値比</div>`,
+  },
+  news: {
+    title: "📰 ニュース",
+    body: () => `<div class="card-title">📰 ニュース</div>
+      <div class="news-body"><div class="muted">読み込み中…</div></div>`,
+  },
+  countdown: {
+    title: "⏱️ カウントダウン",
+    body: () => `<div class="card-title">⏱️ カウントダウン</div>
+      <div class="row cd-form">
+        <input type="text" class="cd-label" placeholder="名前（例：旅行）" maxlength="20" />
+        <input type="date" class="cd-date" />
+        <button class="primary cd-add-btn" type="button">追加</button>
+      </div>
+      <ul class="cd-list"></ul>`,
+  },
+  habit: {
+    title: "🔢 習慣トラッカー",
+    body: () => `<div class="card-title">🔢 習慣トラッカー</div>
+      <div class="row">
+        <input type="text" class="habit-name-input" placeholder="習慣（例：運動）" maxlength="20" />
+        <button class="primary habit-add-btn" type="button">追加</button>
+      </div>
+      <ul class="habit-list"></ul>`,
+  },
 };
 
 // ---------- レイアウト（並び順・大きさ）----------
 const DEFAULT_LAYOUT = [
   { id: "weather", size: "lg" },
+  { id: "news", size: "lg" },
   { id: "market", size: "lg" },
+  { id: "fx", size: "lg" },
+  { id: "crypto", size: "lg" },
   { id: "todo", size: "lg" },
+  { id: "countdown", size: "lg" },
+  { id: "habit", size: "lg" },
   { id: "memo", size: "lg" },
+  { id: "sun", size: "lg" },
+  { id: "weekly", size: "lg" },
   { id: "links", size: "lg" },
 ];
 let layout = store.get("dash_layout", DEFAULT_LAYOUT)
@@ -317,8 +562,15 @@ function renderGrid() {
   grid.innerHTML = html;
   // 中身のデータを流し込む
   renderWeather();
+  renderWeekly();
+  renderSun();
   renderMarket();
+  renderFx();
+  renderCrypto();
+  renderNews();
   renderTodos();
+  renderCountdown();
+  renderHabit();
   renderLinks();
   restoreMemo();
 }
@@ -388,6 +640,57 @@ grid.addEventListener("click", (e) => {
     marketData = null;
     renderMarket();
     loadMarket();
+    return;
+  }
+
+  // --- カウントダウン 追加・削除 ---
+  if (e.target.closest(".cd-add-btn")) {
+    const w = e.target.closest(".widget");
+    const label = w.querySelector(".cd-label").value.trim();
+    const date = w.querySelector(".cd-date").value;
+    if (!label || !date) return;
+    countdowns.push({ label, date });
+    saveCountdowns();
+    renderCountdown();
+    w.querySelector(".cd-label").value = "";
+    w.querySelector(".cd-date").value = "";
+    return;
+  }
+  const cddel = e.target.closest(".cd-del");
+  if (cddel) {
+    countdowns.splice(+cddel.dataset.del, 1);
+    saveCountdowns();
+    renderCountdown();
+    return;
+  }
+
+  // --- 習慣トラッカー 追加・チェック・削除 ---
+  if (e.target.closest(".habit-add-btn")) {
+    const input = e.target.closest(".widget").querySelector(".habit-name-input");
+    const name = input.value.trim();
+    if (!name) return;
+    habits.push({ name, dates: [] });
+    saveHabits();
+    renderHabit();
+    input.value = "";
+    return;
+  }
+  const htoggle = e.target.closest(".habit-toggle");
+  if (htoggle) {
+    const h = habits[+htoggle.dataset.i];
+    h.dates = h.dates || [];
+    const t = todayStr();
+    if (h.dates.includes(t)) h.dates = h.dates.filter((d) => d !== t);
+    else h.dates.push(t);
+    saveHabits();
+    renderHabit();
+    return;
+  }
+  const hdel = e.target.closest(".habit-del");
+  if (hdel) {
+    habits.splice(+hdel.dataset.del, 1);
+    saveHabits();
+    renderHabit();
     return;
   }
 
@@ -480,4 +783,8 @@ $("#add-widget-list").addEventListener("click", (e) => {
 renderGrid();
 initWeather();
 loadMarket();
-setInterval(loadMarket, 5 * 60 * 1000); // 5分ごとに自動更新
+loadFx();
+loadCrypto();
+loadNews();
+setInterval(() => { loadMarket(); loadFx(); loadCrypto(); }, 5 * 60 * 1000); // 5分ごと
+setInterval(loadNews, 10 * 60 * 1000); // ニュースは10分ごと
