@@ -131,7 +131,6 @@ const MARKET_SYMBOLS = [
   { symbol: "^GSPC", label: "S&P500" },
   { symbol: "JPY=X", label: "ドル円" },
 ];
-let marketCache = { time: 0, data: null };
 
 function httpsGetText(url) {
   return new Promise((resolve, reject) => {
@@ -146,34 +145,44 @@ function httpsGetText(url) {
   });
 }
 
-// 1銘柄ぶんを取得する（失敗しても null を返して全体を止めない）
-async function fetchOne(m) {
+// 1銘柄ぶんを取得する（symbolごとに60秒キャッシュ。失敗しても null を返す）
+const quoteCache = new Map(); // symbol -> { time, data }
+async function fetchQuote(symbol) {
+  const c = quoteCache.get(symbol);
+  if (c && Date.now() - c.time < 60 * 1000) return c.data;
+  let data;
   try {
     const url =
       `https://query1.finance.yahoo.com/v8/finance/chart/` +
-      `${encodeURIComponent(m.symbol)}?interval=1d&range=1d`;
+      `${encodeURIComponent(symbol)}?interval=1d&range=1d`;
     const json = JSON.parse(await httpsGetText(url));
     const meta = json?.chart?.result?.[0]?.meta;
     const price = meta?.regularMarketPrice;
     const prev = meta?.chartPreviousClose;
-    if (!isFinite(price)) return { label: m.label, value: null, change: null, changePct: null };
-    const change = isFinite(prev) ? price - prev : null;
-    const changePct = change !== null && prev ? (change / prev) * 100 : null;
-    return { label: m.label, value: price, change, changePct };
+    if (!isFinite(price)) {
+      data = { symbol, value: null, change: null, changePct: null };
+    } else {
+      const change = isFinite(prev) ? price - prev : null;
+      const changePct = change !== null && prev ? (change / prev) * 100 : null;
+      data = { symbol, value: price, change, changePct };
+    }
   } catch (e) {
-    return { label: m.label, value: null, change: null, changePct: null };
+    data = { symbol, value: null, change: null, changePct: null };
   }
-}
-
-async function fetchMarket() {
-  // 60秒以内のキャッシュがあればそれを返す
-  if (marketCache.data && Date.now() - marketCache.time < 60 * 1000) {
-    return marketCache.data;
-  }
-  const data = await Promise.all(MARKET_SYMBOLS.map(fetchOne));
-  marketCache = { time: Date.now(), data };
+  quoteCache.set(symbol, { time: Date.now(), data });
   return data;
 }
+
+// ラベル付きのリストをまとめて取得
+async function fetchList(items) {
+  const arr = await Promise.all(items.map((it) => fetchQuote(it.symbol)));
+  return arr.map((d, i) => ({ label: items[i].label, ...d }));
+}
+// シンボル配列(ラベルなし)をまとめて取得
+async function fetchSymbols(symbols) {
+  return Promise.all(symbols.map((s) => fetchQuote(s)));
+}
+function fetchMarket() { return fetchList(MARKET_SYMBOLS); }
 
 // --- 為替(複数通貨ペア)も Yahoo Finance から取得 ---
 const FX_SYMBOLS = [
@@ -184,7 +193,7 @@ const FX_SYMBOLS = [
 let fxCache = { time: 0, data: null };
 async function fetchFx() {
   if (fxCache.data && Date.now() - fxCache.time < 60 * 1000) return fxCache.data;
-  const data = await Promise.all(FX_SYMBOLS.map(fetchOne));
+  const data = await fetchList(FX_SYMBOLS);
   fxCache = { time: Date.now(), data };
   return data;
 }
@@ -589,10 +598,44 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // --- 外部データ(指標・為替・仮想通貨・ニュース)を返す共通処理 ---
-  const feeds = { "/market": fetchMarket, "/fx": fetchFx, "/crypto": fetchCrypto, "/news": fetchNews };
-  if (feeds[req.url]) {
-    feeds[req.url]()
+  const urlPathOnly = req.url.split("?")[0];
+
+  // --- マーケット指標(銘柄を ?symbols= で自由に指定できる) ---
+  if (urlPathOnly === "/market") {
+    let producer;
+    try {
+      const sp = new URL(req.url, "http://localhost").searchParams;
+      const raw = sp.get("symbols");
+      if (raw) {
+        // 安全な文字だけ許可し、最大12銘柄まで
+        const symbols = raw
+          .split(",")
+          .map((s) => s.trim())
+          .filter((s) => /^[A-Za-z0-9.^=:-]{1,15}$/.test(s))
+          .slice(0, 12);
+        producer = symbols.length ? () => fetchSymbols(symbols) : fetchMarket;
+      } else {
+        producer = fetchMarket;
+      }
+    } catch (e) {
+      producer = fetchMarket;
+    }
+    producer()
+      .then((data) => {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: true, data }));
+      })
+      .catch((e) => {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: false, error: e.message, data: null }));
+      });
+    return;
+  }
+
+  // --- 外部データ(為替・仮想通貨・ニュース)を返す共通処理 ---
+  const feeds = { "/fx": fetchFx, "/crypto": fetchCrypto, "/news": fetchNews };
+  if (feeds[urlPathOnly]) {
+    feeds[urlPathOnly]()
       .then((data) => {
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ ok: true, data }));

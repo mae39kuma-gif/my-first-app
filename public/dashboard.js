@@ -128,7 +128,30 @@ function initWeather() {
   );
 }
 
-// ---------- 市場指標 (サーバー /market 経由) ----------
+// ---------- 市場指標 (サーバー /market 経由・銘柄カスタム可) ----------
+// えらべる銘柄の一覧（label=表示名 / sym=Yahooのシンボル）
+const MARKET_CATALOG = [
+  { sym: "^N225", label: "日経平均" },
+  { sym: "^DJI", label: "NYダウ" },
+  { sym: "^GSPC", label: "S&P500" },
+  { sym: "^IXIC", label: "ナスダック" },
+  { sym: "^HSI", label: "香港ハンセン" },
+  { sym: "^FTSE", label: "英FTSE" },
+  { sym: "^GDAXI", label: "独DAX" },
+  { sym: "^TNX", label: "米10年債利回り" },
+  { sym: "JPY=X", label: "ドル円" },
+  { sym: "EURJPY=X", label: "ユーロ円" },
+  { sym: "GBPJPY=X", label: "ポンド円" },
+  { sym: "EURUSD=X", label: "ユーロドル" },
+  { sym: "GC=F", label: "金(ゴールド)" },
+  { sym: "CL=F", label: "原油WTI" },
+  { sym: "BTC-JPY", label: "ビットコイン円" },
+  { sym: "ETH-JPY", label: "イーサリアム円" },
+];
+const MARKET_LABELS = Object.fromEntries(MARKET_CATALOG.map((c) => [c.sym, c.label]));
+const DEFAULT_MARKET = ["^N225", "^DJI", "^GSPC", "JPY=X"];
+let selectedMarket = store.get("dash_market_syms", DEFAULT_MARKET);
+
 let marketData = null;
 function fmtNum(n) {
   if (n === null || n === undefined || !isFinite(n)) return "—";
@@ -145,6 +168,10 @@ function renderMarket() {
     box.innerHTML = `<div class="muted" style="grid-column:1/-1;">読み込み中…</div>`;
     return;
   }
+  if (marketData.length === 0) {
+    box.innerHTML = `<div class="muted" style="grid-column:1/-1;">「銘柄」から表示する指標をえらんでください</div>`;
+    return;
+  }
   box.innerHTML = marketData
     .map((m) => {
       const has = m.change !== null && m.change !== undefined;
@@ -154,8 +181,9 @@ function renderMarket() {
       const chg = has
         ? `${arrow} ${fmtNum(Math.abs(m.change))} (${m.changePct >= 0 ? "+" : "-"}${Math.abs(m.changePct).toFixed(2)}%)`
         : "—";
+      const label = m.label || MARKET_LABELS[m.symbol] || m.symbol;
       return `<div class="m-item">
-          <div class="m-label">${m.label}</div>
+          <div class="m-label">${escapeHtml(label)}</div>
           <div class="m-value">${fmtNum(m.value)}</div>
           <div class="m-change ${cls}">${chg}</div>
         </div>`;
@@ -169,8 +197,9 @@ function renderMarket() {
   }
 }
 async function loadMarket() {
+  if (selectedMarket.length === 0) { marketData = []; renderMarket(); return; }
   try {
-    const res = await fetch("/market");
+    const res = await fetch("/market?symbols=" + encodeURIComponent(selectedMarket.join(",")));
     const json = await res.json();
     marketData = json.ok && json.data ? json.data : "error";
   } catch {
@@ -178,6 +207,31 @@ async function loadMarket() {
   }
   renderMarket();
 }
+
+// 銘柄えらびダイアログ
+const marketDialog = $("#market-dialog");
+function openMarketDialog() {
+  const sel = new Set(selectedMarket);
+  $("#market-check-list").innerHTML = MARKET_CATALOG
+    .map(
+      (c) => `<label class="check-row">
+        <input type="checkbox" value="${c.sym}" ${sel.has(c.sym) ? "checked" : ""} />
+        <span>${c.label}</span>
+      </label>`
+    )
+    .join("");
+  marketDialog.showModal();
+}
+$("#market-dialog-cancel").addEventListener("click", () => marketDialog.close());
+$("#market-dialog-save").addEventListener("click", () => {
+  const checked = [...$("#market-check-list").querySelectorAll("input:checked")].map((i) => i.value);
+  selectedMarket = checked.slice(0, 12); // 最大12銘柄
+  store.set("dash_market_syms", selectedMarket);
+  marketDialog.close();
+  marketData = null;
+  renderMarket();
+  loadMarket();
+});
 
 // ---------- 週間天気（天気データを使う） ----------
 function renderWeekly() {
@@ -454,7 +508,10 @@ const WIDGETS = {
     title: "📈 マーケット",
     body: () => `<div class="card-title" style="justify-content:space-between;">
         <span>📈 マーケット</span>
-        <button class="small-btn market-refresh" type="button">更新</button>
+        <span class="title-btns">
+          <button class="small-btn market-symbols" type="button">＋銘柄</button>
+          <button class="small-btn market-refresh" type="button">更新</button>
+        </span>
       </div>
       <div class="market-grid market-body"><div class="muted" style="grid-column:1/-1;">読み込み中…</div></div>
       <div class="muted market-time" style="font-size:11px;margin-top:8px;"></div>`,
@@ -528,25 +585,32 @@ const WIDGETS = {
 };
 
 // ---------- レイアウト（並び順・大きさ）----------
+// サイズ: sm=小(1マス) / md=中(横2マス・全幅) / lg=大(2×2・全幅で背が高い)
+const SIZES = ["sm", "md", "lg"];
 const DEFAULT_LAYOUT = [
-  { id: "clock", size: "lg" },
-  { id: "weather", size: "lg" },
-  { id: "news", size: "lg" },
-  { id: "market", size: "lg" },
-  { id: "fx", size: "lg" },
-  { id: "crypto", size: "lg" },
-  { id: "todo", size: "lg" },
-  { id: "countdown", size: "lg" },
-  { id: "habit", size: "lg" },
-  { id: "memo", size: "lg" },
-  { id: "sun", size: "lg" },
-  { id: "weekly", size: "lg" },
-  { id: "links", size: "lg" },
+  { id: "clock", size: "md" },
+  { id: "weather", size: "md" },
+  { id: "news", size: "md" },
+  { id: "market", size: "md" },
+  { id: "fx", size: "md" },
+  { id: "crypto", size: "md" },
+  { id: "todo", size: "md" },
+  { id: "countdown", size: "md" },
+  { id: "habit", size: "md" },
+  { id: "memo", size: "md" },
+  { id: "sun", size: "md" },
+  { id: "weekly", size: "md" },
+  { id: "links", size: "md" },
 ];
 let layout = store.get("dash_layout", DEFAULT_LAYOUT)
   .filter((it) => WIDGETS[it.id]); // 知らないウィジェットは無視
+// 移行: 旧サイズ('lg'=全幅)を新しい中サイズ'md'に読み替える（1回だけ）
+if (store.get("dash_layout_v", 1) < 2) {
+  layout.forEach((it) => { if (it.size === "lg" || !SIZES.includes(it.size)) it.size = "md"; });
+  store.set("dash_layout_v", 2);
+}
 // 以前のレイアウトに時計が無ければ先頭に足す（時計のウィジェット化に伴う移行）
-if (!layout.some((it) => it.id === "clock")) layout.unshift({ id: "clock", size: "lg" });
+if (!layout.some((it) => it.id === "clock")) layout.unshift({ id: "clock", size: "md" });
 function saveLayout() { store.set("dash_layout", layout); }
 
 let editMode = false;
@@ -558,8 +622,8 @@ function renderGrid() {
     .map((item) => {
       const w = WIDGETS[item.id];
       if (!w) return "";
-      const span = item.size === "sm" ? "span1" : "span2";
-      return `<div class="card widget ${span}" data-id="${item.id}">
+      const size = SIZES.includes(item.size) ? item.size : "md";
+      return `<div class="card widget size-${size}" data-id="${item.id}">
           <button class="edit-badge del-badge" data-badge="del" aria-label="削除">−</button>
           <button class="edit-badge size-badge" data-badge="size" aria-label="大きさ">⤢</button>
           ${w.body()}
@@ -623,7 +687,8 @@ function beginLift() {
   drag.started = true;
   const el = drag.el;
   const ph = document.createElement("div");
-  ph.className = "card widget placeholder " + (el.classList.contains("span1") ? "span1" : "span2");
+  const sizeClass = ["size-sm", "size-md", "size-lg"].find((c) => el.classList.contains(c)) || "size-md";
+  ph.className = "card widget placeholder " + sizeClass;
   drag.placeholder = ph;
   el.parentNode.insertBefore(ph, el);
   el.style.width = drag.w + "px";
@@ -737,7 +802,9 @@ grid.addEventListener("click", (e) => {
         saveLayout();
         renderGrid();
       } else if (badge.dataset.badge === "size") {
-        layout[idx].size = layout[idx].size === "lg" ? "sm" : "lg";
+        // 小→中→大→小 と順番に切り替え
+        const cur = SIZES.indexOf(layout[idx].size);
+        layout[idx].size = SIZES[(cur + 1) % SIZES.length] || "md";
         saveLayout();
         renderGrid();
       }
@@ -769,11 +836,15 @@ grid.addEventListener("click", (e) => {
     return;
   }
 
-  // --- マーケット更新 ---
+  // --- マーケット更新・銘柄えらび ---
   if (e.target.closest(".market-refresh")) {
     marketData = null;
     renderMarket();
     loadMarket();
+    return;
+  }
+  if (e.target.closest(".market-symbols")) {
+    openMarketDialog();
     return;
   }
 

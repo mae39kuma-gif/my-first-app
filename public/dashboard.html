@@ -66,8 +66,10 @@
       min-width: 0;
     }
     .widget { position: relative; }
-    .widget.span1 { grid-column: span 1; }
-    .widget.span2 { grid-column: 1 / -1; }
+    /* 3段階サイズ：小=1マス / 中=横2マス / 大=2×2(全幅で背が高い) */
+    .widget.size-sm { grid-column: span 1; }
+    .widget.size-md { grid-column: span 2; }
+    .widget.size-lg { grid-column: span 2; min-height: 300px; }
     /* 編集モード用：カードの誤選択を防ぐ（入力欄では選択を許可） */
     .widget { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
     .widget input, .widget textarea { -webkit-user-select: text; user-select: text; }
@@ -118,7 +120,9 @@
     .weather-range b { color: var(--text); }
 
     /* --- 市場指標 --- */
-    .market-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .market-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+    .title-btns { display: flex; gap: 6px; }
+    .title-btns .small-btn { white-space: nowrap; padding: 6px 10px; }
     .m-item { background: var(--card2); border-radius: 12px; padding: 10px 12px; }
     .m-label { font-size: 12px; color: var(--muted); }
     .m-value { font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -235,7 +239,12 @@
     .habit-name { flex: 1; font-size: 15px; word-break: break-word; }
     .habit-streak { font-size: 14px; color: #fb923c; font-weight: 700; }
 
-    .small-btn { background: var(--card2); color: var(--muted); border: none; border-radius: 10px; font-size: 13px; padding: 8px 12px; cursor: pointer; }
+    .small-btn { background: var(--card2); color: var(--muted); border: none; border-radius: 10px; font-size: 13px; padding: 8px 12px; cursor: pointer; white-space: nowrap; }
+    /* 銘柄選択ダイアログ */
+    .check-list { display: flex; flex-direction: column; gap: 2px; margin-top: 12px; max-height: 50vh; overflow-y: auto; }
+    .check-row { display: flex; align-items: center; gap: 10px; padding: 11px 6px; border-bottom: 1px solid #2b3a52; cursor: pointer; font-size: 15px; }
+    .check-row:last-child { border-bottom: none; }
+    .check-row input { width: 20px; height: 20px; accent-color: var(--accent); }
 
     dialog {
       background: var(--card); color: var(--text); border: none; border-radius: 16px;
@@ -279,6 +288,16 @@
     <div class="dialog-actions">
       <button class="small-btn" id="link-cancel">キャンセル</button>
       <button class="primary" id="link-save">追加</button>
+    </div>
+  </dialog>
+
+  <!-- マーケット銘柄えらびダイアログ -->
+  <dialog id="market-dialog">
+    <h3>表示する銘柄をえらぶ</h3>
+    <div class="check-list" id="market-check-list"></div>
+    <div class="dialog-actions">
+      <button class="small-btn" id="market-dialog-cancel">キャンセル</button>
+      <button class="primary" id="market-dialog-save">決定</button>
     </div>
   </dialog>
 
