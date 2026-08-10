@@ -184,15 +184,45 @@ function weekStart() {
   d.setHours(0, 0, 0, 0);
   return d;
 }
+const GOAL1 = 7;  // ここまで集めると ごほうび
+const GOAL2 = 14; // ここまで集めると もっとごほうび
+
 function showStamps(stamps) {
   const start = weekStart().getTime();
   const week = (stamps || []).filter((s) => new Date(s.time).getTime() >= start);
-  document.getElementById("stampCount").textContent = `${week.length}個`;
+  const n = week.length;
+
+  document.getElementById("stampCount").textContent = `${n}個`;
   const row = document.getElementById("stampRow");
-  row.innerHTML = week.length
-    ? "🐾".repeat(Math.min(week.length, 60))
+  row.innerHTML = n
+    ? "🐾".repeat(Math.min(n, 60))
     : '<span class="none">まだスタンプはありません</span>';
+
+  const goal = document.getElementById("stampGoal");
+  if (n >= GOAL2) {
+    goal.textContent = "🎉 もっとごほうび🎁🎁 達成！";
+  } else if (n >= GOAL1) {
+    goal.textContent = `🎉 ごほうび🎁 達成！ あと${GOAL2 - n}こで もっとごほうび`;
+  } else {
+    goal.textContent = `あと${GOAL1 - n}つで ごほうび🎁`;
+  }
 }
+
+// スタンプをあげるボタン
+document.getElementById("giveStamp").addEventListener("click", async () => {
+  const b = document.getElementById("giveStamp");
+  try {
+    await fetch("/give-stamp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    b.textContent = "🐾 あげました！";
+    setTimeout(() => (b.textContent = "🐾 スタンプをあげる"), 1500);
+  } catch (e) {
+    alert("送信に失敗しました。");
+  }
+});
 
 // ごはん予定を入力欄に反映する（入力中は邪魔しない）
 function fillMealInputs(plan) {
@@ -447,6 +477,8 @@ function connect() {
     } else if (data.type === "look") {
       showLook(data.lookState);
       if (notifyReady) notify("👀 見て欲しい！", "ゆうた");
+    } else if (data.type === "stamp") {
+      showStamps(data.stamps);
     }
   };
 }

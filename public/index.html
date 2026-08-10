@@ -145,6 +145,27 @@
     .stamp-title span { color: var(--accent-dark); font-weight: 700; }
     .stamp-row { font-size: 20px; line-height: 1.5; word-break: break-all; min-height: 26px; }
     .stamp-row .none { font-size: 13px; color: var(--muted); }
+    .stamp-bar {
+      position: relative; height: 10px; background: #efe2cd;
+      border-radius: 999px; margin: 10px 0 8px; overflow: hidden;
+    }
+    .stamp-bar-fill {
+      height: 100%; width: 0;
+      background: linear-gradient(90deg, #e0a86b, var(--accent));
+      border-radius: 999px; transition: width .4s ease;
+    }
+    .stamp-mark {
+      position: absolute; top: 0; left: 50%;
+      width: 2px; height: 100%; background: var(--card);
+    }
+    .stamp-goal {
+      font-size: 14px; font-weight: 700; color: var(--accent-dark); margin-bottom: 10px;
+    }
+    .stamp-help {
+      font-size: 12px; color: var(--muted); line-height: 1.8;
+      background: #fdf6ec; border-radius: 10px; padding: 10px 12px;
+    }
+    .stamp-help b { color: var(--accent-dark); }
     .today-meal {
       display: flex; align-items: center; gap: 10px; margin: 6px 0 10px;
       padding: 12px; border-radius: 12px;
@@ -194,6 +215,18 @@
       <div class="stamp-box">
         <div class="stamp-title">今週のごほうびスタンプ <span id="stampCount">0個</span></div>
         <div class="stamp-row" id="stampRow"></div>
+        <div class="stamp-bar">
+          <div class="stamp-bar-fill" id="stampBarFill"></div>
+          <div class="stamp-mark"></div>
+        </div>
+        <div class="stamp-goal" id="stampGoal"></div>
+        <div class="stamp-help">
+          <div>・する事をやると スタンプが 1つ もらえるよ</div>
+          <div>・<b>7つ</b>あつめると <b>ごほうび🎁</b></div>
+          <div>・<b>14こ</b>あつめると <b>もっとごほうび🎁🎁</b></div>
+          <div>・スタンプは 毎週月曜日に リセットされるよ</div>
+          <div>・ご主人から スタンプを もらえることもあるよ</div>
+        </div>
       </div>
     </div>
 

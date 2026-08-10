@@ -109,14 +109,33 @@ function weekStart() {
   d.setHours(0, 0, 0, 0);
   return d;
 }
+const GOAL1 = 7;  // ここまで集めると ごほうび
+const GOAL2 = 14; // ここまで集めると もっとごほうび
+
 function showStamps(stamps) {
   const start = weekStart().getTime();
   const week = (stamps || []).filter((s) => new Date(s.time).getTime() >= start);
-  document.getElementById("stampCount").textContent = `${week.length}個`;
+  const n = week.length;
+
+  document.getElementById("stampCount").textContent = `${n}個`;
   const row = document.getElementById("stampRow");
-  row.innerHTML = week.length
-    ? "🐾".repeat(Math.min(week.length, 60))
+  row.innerHTML = n
+    ? "🐾".repeat(Math.min(n, 60))
     : '<span class="none">まだスタンプはありません</span>';
+
+  // ごほうびまでの進み具合をバーで見せる
+  const pct = Math.min((n / GOAL2) * 100, 100);
+  document.getElementById("stampBarFill").style.width = `${pct}%`;
+
+  // あと何個でごほうびかを知らせる
+  const goal = document.getElementById("stampGoal");
+  if (n >= GOAL2) {
+    goal.textContent = "🎉 もっとごほうび🎁🎁 ゲット！すごい！";
+  } else if (n >= GOAL1) {
+    goal.textContent = `🎉 ごほうび🎁 ゲット！ あと${GOAL2 - n}こで もっとごほうび🎁🎁`;
+  } else {
+    goal.textContent = `あと${GOAL1 - n}つで ごほうび🎁`;
+  }
 }
 
 // --- やり忘れのお知らせ ---
@@ -530,6 +549,11 @@ function connect() {
       showStamps(data.stamps);
     } else if (data.type === "look") {
       showLook(data.lookState);
+    } else if (data.type === "stamp") {
+      // ご主人がスタンプをくれた
+      showStamps(data.stamps);
+      showToast("わん！スタンプをもらいました！🐾");
+      notifyPopup("🐾 スタンプをもらったよ！", "ご主人からスタンプが1つ");
     } else if (data.type === "reminder") {
       // 夜になってもやり忘れがあるとき
       showTodoWarn(data.todo);

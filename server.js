@@ -580,6 +580,20 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // --- ご主人がスタンプをあげる ---
+  if (req.url === "/give-stamp" && req.method === "POST") {
+    readJson(req, res, () => {
+      addStamp("ごほうび");
+      scheduleSave();
+      broadcast({ type: "stamp", stamps });
+      // わんこの端末へプッシュ
+      sendPush("dog", "🐾 スタンプをもらったよ！", "ご主人からスタンプが1つ");
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: true }));
+    });
+    return;
+  }
+
   // --- わんこがごはんをリクエストする ---
   if (req.url === "/request" && req.method === "POST") {
     readJson(req, res, (data) => {
