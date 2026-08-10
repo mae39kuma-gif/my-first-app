@@ -134,6 +134,28 @@
     .care-btn:active { transform: scale(0.97); }
     .care-btn.locked { background: #b5793f; color: #fff; }
     .care-state { font-size: 12px; color: var(--muted); margin-top: 8px; }
+    .todo-warn {
+      display: none; margin-top: 12px; padding: 10px 12px; border-radius: 10px;
+      background: #ffe9e3; border: 1px solid #f3c0b2; color: #b5502f;
+      font-size: 13px; font-weight: 600;
+    }
+    .todo-warn.show { display: block; }
+    .stamp-box { margin-top: 14px; padding-top: 12px; border-top: 1px dashed #ecdcc4; }
+    .stamp-title { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+    .stamp-title span { color: var(--accent-dark); font-weight: 700; }
+    .stamp-row { font-size: 20px; line-height: 1.5; word-break: break-all; min-height: 26px; }
+    .stamp-row .none { font-size: 13px; color: var(--muted); }
+    .today-meal {
+      display: flex; align-items: center; gap: 10px; margin: 6px 0 10px;
+      padding: 12px; border-radius: 12px;
+      background: linear-gradient(135deg, #fff3e0, #ffe6c7); border: 1px solid #f0d9b8;
+    }
+    .today-label {
+      font-size: 12px; color: #fff; background: var(--accent-dark);
+      border-radius: 999px; padding: 4px 10px; white-space: nowrap;
+    }
+    .today-val { font-size: 18px; font-weight: 700; color: var(--accent-dark); }
+    .today-val.empty-val { font-size: 14px; font-weight: 400; color: var(--muted); }
   </style>
 </head>
 <body>
@@ -168,6 +190,11 @@
       <div class="care-state" id="creamStateText"></div>
       <div class="care-state" id="collarStateText"></div>
       <div class="care-state" id="lookStateText"></div>
+      <div class="todo-warn" id="todoWarn"></div>
+      <div class="stamp-box">
+        <div class="stamp-title">今週のごほうびスタンプ <span id="stampCount">0個</span></div>
+        <div class="stamp-row" id="stampRow"></div>
+      </div>
     </div>
 
     <div class="card">
@@ -183,6 +210,10 @@
 
     <div class="card">
       <label>🍚 きょうのごはん予定</label>
+      <div class="today-meal" id="todayMeal">
+        <div class="today-label" id="todayLabel">今日</div>
+        <div class="today-val" id="todayVal">まだ決まっていません</div>
+      </div>
       <div id="mealPlan" class="meal-view">
         <div class="meal-row"><span class="meal-label">平日の夜</span><span class="meal-val" id="mvWeekdayDinner">まだ決まっていません</span></div>
         <div class="meal-row"><span class="meal-label">土日の昼</span><span class="meal-val" id="mvWeekendLunch">まだ決まっていません</span></div>

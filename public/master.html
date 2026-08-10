@@ -75,6 +75,18 @@
       border-radius:999px; padding:8px 12px; font-size:13px; cursor:pointer;
     }
     .cheer-preset:active { transform: scale(0.96); }
+    .stamp-box { background: var(--card); border-radius: 12px; padding: 14px; margin-top: 12px; }
+    .stamp-title { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+    .stamp-title span { color: var(--accent); font-weight: 700; }
+    .stamp-row { font-size: 20px; line-height: 1.5; word-break: break-all; min-height: 26px; }
+    .stamp-row .none { font-size: 13px; color: var(--muted); }
+    .reply-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .reply-btn {
+      flex: 1 1 auto; background: var(--accent); color: #2a2018; border: none;
+      border-radius: 999px; padding: 12px 16px; font-size: 14px;
+      font-weight: 600; cursor: pointer;
+    }
+    .reply-btn:active { transform: scale(0.96); }
     .perm-notice { font-size: 13px; margin-bottom: 14px; }
     .perm-notice a { color: var(--accent); }
   </style>
@@ -113,6 +125,19 @@
         <div class="person-status" id="mLook">—</div>
         <div class="person-time" id="mLookTime"></div>
       </div></div>
+    </div>
+
+    <div class="stamp-box">
+      <div class="stamp-title">🐾 今週のごほうびスタンプ <span id="stampCount">0個</span></div>
+      <div class="stamp-row" id="stampRow"></div>
+    </div>
+
+    <h2>💬 ゆうたに返事する</h2>
+    <div class="reply-row">
+      <button class="reply-btn" data-msg="えらい！">えらい！</button>
+      <button class="reply-btn" data-msg="見たよ">見たよ</button>
+      <button class="reply-btn" data-msg="ありがとう">ありがとう</button>
+      <button class="reply-btn" data-msg="あとでね">あとでね</button>
     </div>
 
     <h2>📣 わんこに「今なにしてるか」を教える</h2>

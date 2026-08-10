@@ -176,6 +176,24 @@ function showLook(lookState) {
   }
 }
 
+// --- ごほうびスタンプ🐾（今週分だけ数える）---
+function weekStart() {
+  const d = new Date();
+  const diff = (d.getDay() + 6) % 7; // 月曜を週のはじめにする
+  d.setDate(d.getDate() - diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+function showStamps(stamps) {
+  const start = weekStart().getTime();
+  const week = (stamps || []).filter((s) => new Date(s.time).getTime() >= start);
+  document.getElementById("stampCount").textContent = `${week.length}個`;
+  const row = document.getElementById("stampRow");
+  row.innerHTML = week.length
+    ? "🐾".repeat(Math.min(week.length, 60))
+    : '<span class="none">まだスタンプはありません</span>';
+}
+
 // ごはん予定を入力欄に反映する（入力中は邪魔しない）
 function fillMealInputs(plan) {
   if (mealEditing) return;
@@ -258,6 +276,16 @@ async function sendCheer(text) {
 // よく使う言葉のボタン
 document.querySelectorAll(".cheer-preset").forEach((b) => {
   b.addEventListener("click", () => sendCheer(b.dataset.msg));
+});
+// 返事ボタン（ワンタップでゆうたに返事する）
+document.querySelectorAll(".reply-btn").forEach((b) => {
+  b.addEventListener("click", async () => {
+    const text = b.dataset.msg;
+    const before = b.textContent;
+    await sendCheer(text);
+    b.textContent = "送った！";
+    setTimeout(() => (b.textContent = before), 1500);
+  });
 });
 // 自由入力の送信
 document.getElementById("sendCheer").addEventListener("click", () => {
@@ -370,6 +398,7 @@ function connect() {
       showCream(data.creamState);
       showCollar(data.collarState);
       showLook(data.lookState);
+      showStamps(data.stamps);
       render();
       renderRequests();
       saveCache();
@@ -403,13 +432,16 @@ function connect() {
       updateContent("mealPlan", data.mealPlan);
     } else if (data.type === "lock") {
       showLock(data.lockState);
+      showStamps(data.stamps);
       if (notifyReady)
         notify(data.lockState.locked ? "🔒 鍵をかけたよ" : "🔓 鍵を外したよ", "ゆうた");
     } else if (data.type === "cream") {
       showCream(data.creamState);
+      showStamps(data.stamps);
       if (notifyReady) notify("🧴 クリームを塗ったよ", "ゆうた");
     } else if (data.type === "collar") {
       showCollar(data.collarState);
+      showStamps(data.stamps);
       if (notifyReady)
         notify(data.collarState.on ? "🦮 首輪をつけたよ" : "🦮 首輪を外したよ", "ゆうた");
     } else if (data.type === "look") {

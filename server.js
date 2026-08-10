@@ -76,13 +76,24 @@ let creamState = { time: "" };
 // 首輪の状態（付けた/外した）と、「見て欲しい！」を押した時刻
 let collarState = { on: false, time: "" };
 let lookState = { time: "" };
+// ごほうびスタンプ（する事をこなすと貯まる・最大200件）
+let stamps = []; // { type, time } 新しいものが先頭
+const STAMPS_MAX = 200;
+// やり忘れのお知らせを最後に送った日（同じ日に何度も送らないため）
+let lastReminderDay = "";
 // わんこからの「ごはんリクエスト」（新しいものが先頭・最大50件）
 let requests = []; // { name, text, time }
 const REQUESTS_MAX = 50;
 
+// スタンプを1つ増やす
+function addStamp(type) {
+  stamps.unshift({ type, time: new Date().toISOString() });
+  if (stamps.length > STAMPS_MAX) stamps.length = STAMPS_MAX;
+}
+
 // --- データベースへの保存・読み込み（Upstash Redisがあれば永久保存）---
 function snapshot() {
-  return { currentStatus, history, mealPlan, masterStatus, lastCheer, lockState, creamState, collarState, lookState, requests, subscriptions };
+  return { currentStatus, history, mealPlan, masterStatus, lastCheer, lockState, creamState, collarState, lookState, stamps, lastReminderDay, requests, subscriptions };
 }
 let saveTimer = null;
 function scheduleSave() {
@@ -110,6 +121,8 @@ async function loadState() {
     if (s.creamState) creamState = s.creamState;
     if (s.collarState) collarState = s.collarState;
     if (s.lookState) lookState = s.lookState;
+    if (Array.isArray(s.stamps)) stamps = s.stamps;
+    if (s.lastReminderDay) lastReminderDay = s.lastReminderDay;
     if (Array.isArray(s.requests)) requests = s.requests;
     if (s.subscriptions) {
       subscriptions.dog = s.subscriptions.dog || [];
@@ -379,6 +392,7 @@ const server = http.createServer((req, res) => {
         creamState: creamState,
         collarState: collarState,
         lookState: lookState,
+        stamps: stamps,
       })}\n\n`
     );
 
@@ -511,8 +525,9 @@ const server = http.createServer((req, res) => {
   if (req.url === "/lock" && req.method === "POST") {
     readJson(req, res, (data) => {
       lockState = { locked: !!data.locked, time: new Date().toISOString() };
+      if (lockState.locked) addStamp("鍵"); // かけたときだけスタンプ
       scheduleSave();
-      broadcast({ type: "lock", lockState });
+      broadcast({ type: "lock", lockState, stamps });
       // ご主人の端末へプッシュ
       sendPush("master", lockState.locked ? "🔒 鍵をかけたよ" : "🔓 鍵を外したよ", "ゆうた");
       res.writeHead(200, { "Content-Type": "application/json" });
@@ -525,8 +540,9 @@ const server = http.createServer((req, res) => {
   if (req.url === "/cream" && req.method === "POST") {
     readJson(req, res, () => {
       creamState = { time: new Date().toISOString() };
+      addStamp("クリーム");
       scheduleSave();
-      broadcast({ type: "cream", creamState });
+      broadcast({ type: "cream", creamState, stamps });
       // ご主人の端末へプッシュ
       sendPush("master", "🧴 クリームを塗ったよ", "ゆうた");
       res.writeHead(200, { "Content-Type": "application/json" });
@@ -539,8 +555,9 @@ const server = http.createServer((req, res) => {
   if (req.url === "/collar" && req.method === "POST") {
     readJson(req, res, (data) => {
       collarState = { on: !!data.on, time: new Date().toISOString() };
+      if (collarState.on) addStamp("首輪"); // 付けたときだけスタンプ
       scheduleSave();
-      broadcast({ type: "collar", collarState });
+      broadcast({ type: "collar", collarState, stamps });
       // ご主人の端末へプッシュ
       sendPush("master", collarState.on ? "🦮 首輪をつけたよ" : "🦮 首輪を外したよ", "ゆうた");
       res.writeHead(200, { "Content-Type": "application/json" });
@@ -660,6 +677,40 @@ const server = http.createServer((req, res) => {
   // --- それ以外は静的ファイル ---
   serveStatic(req, res);
 });
+
+// --- やり忘れのお知らせ ---
+// 日本時間で夜（21時以降）になっても「鍵」「クリーム」が終わっていなければ、
+// ゆうたの端末に「まだだよ！」とお知らせを送る（1日1回だけ）。
+const REMINDER_HOUR = 21; // 日本時間の何時から知らせるか
+
+// 日本時間での「今日の日付」と「時」を求める
+function jstNow() {
+  const d = new Date(Date.now() + 9 * 60 * 60 * 1000); // UTC+9
+  return { day: d.toISOString().slice(0, 10), hour: d.getUTCHours() };
+}
+// その時刻が日本時間で「今日」かどうか
+function isTodayJst(iso, today) {
+  if (!iso) return false;
+  return new Date(new Date(iso).getTime() + 9 * 60 * 60 * 1000)
+    .toISOString().slice(0, 10) === today;
+}
+
+function checkReminder() {
+  const { day, hour } = jstNow();
+  if (hour < REMINDER_HOUR) return;   // まだ夜になっていない
+  if (lastReminderDay === day) return; // 今日はもう送った
+
+  const todo = [];
+  if (!lockState.locked) todo.push("鍵");
+  if (!isTodayJst(creamState.time, day)) todo.push("クリーム");
+  if (todo.length === 0) return; // 全部おわっている
+
+  lastReminderDay = day;
+  scheduleSave();
+  sendPush("dog", "🐾 まだだよ！", `${todo.join("と")}がまだだよ`);
+  broadcast({ type: "reminder", todo });
+}
+setInterval(checkReminder, 60 * 1000); // 1分ごとに確認
 
 // データベースから前回のデータを読み込んでから起動する
 loadState().finally(() => {

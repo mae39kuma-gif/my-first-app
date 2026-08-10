@@ -100,6 +100,43 @@ function showLook(lookState) {
     : "";
 }
 
+// --- ごほうびスタンプ🐾 ---
+// 今週（月曜はじまり）のスタンプだけ数えて表示する
+function weekStart() {
+  const d = new Date();
+  const diff = (d.getDay() + 6) % 7; // 月曜を週のはじめにする
+  d.setDate(d.getDate() - diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+function showStamps(stamps) {
+  const start = weekStart().getTime();
+  const week = (stamps || []).filter((s) => new Date(s.time).getTime() >= start);
+  document.getElementById("stampCount").textContent = `${week.length}個`;
+  const row = document.getElementById("stampRow");
+  row.innerHTML = week.length
+    ? "🐾".repeat(Math.min(week.length, 60))
+    : '<span class="none">まだスタンプはありません</span>';
+}
+
+// --- やり忘れのお知らせ ---
+// 鍵とクリームが今日まだなら、夜に「まだだよ！」と出す
+let todoList = [];
+function showTodoWarn(todo) {
+  todoList = todo || [];
+  const el = document.getElementById("todoWarn");
+  if (todoList.length) {
+    el.textContent = `🐾 まだだよ！ ${todoList.join("と")}がまだだよ`;
+    el.classList.add("show");
+  } else {
+    el.classList.remove("show");
+  }
+}
+// 終わったものはお知らせから消す
+function doneTodo(name) {
+  if (todoList.includes(name)) showTodoWarn(todoList.filter((t) => t !== name));
+}
+
 // 鍵ボタン：押すたびに かけた⇄外した を切り替える
 lockBtn.addEventListener("click", async () => {
   const next = !currentLocked;
@@ -216,6 +253,38 @@ function showMealPlan(plan) {
       el.classList.add("empty-val");
     }
   });
+  showTodayMeal(plan);
+}
+
+// 今日が平日か土日かを自動で見て、「今日のごはん」を大きく出す
+function showTodayMeal(plan) {
+  const now = new Date();
+  const day = now.getDay(); // 0=日曜, 6=土曜
+  const isWeekend = day === 0 || day === 6;
+  // お昼までは昼ごはん、それ以降は夜ごはんを出す
+  const isLunchTime = isWeekend && now.getHours() < 14;
+
+  let label, val;
+  if (isLunchTime) {
+    label = "今日のお昼";
+    val = plan.weekendLunch;
+  } else if (isWeekend) {
+    label = "今日の夜";
+    val = plan.weekendDinner;
+  } else {
+    label = "今日の夜";
+    val = plan.weekdayDinner;
+  }
+
+  document.getElementById("todayLabel").textContent = label;
+  const el = document.getElementById("todayVal");
+  if (val) {
+    el.textContent = val;
+    el.classList.remove("empty-val");
+  } else {
+    el.textContent = "まだ決まっていません";
+    el.classList.add("empty-val");
+  }
 }
 
 // 「さみしい」ボタン → ご主人に伝える
@@ -416,6 +485,7 @@ function connect() {
       showCream(data.creamState);
       showCollar(data.collarState);
       showLook(data.lookState);
+      showStamps(data.stamps);
       saveContent({ mealPlan: meal, masterStatus: ms, lastCheer: cheer });
       render();
       saveCache();
@@ -449,12 +519,21 @@ function connect() {
       }
     } else if (data.type === "lock") {
       showLock(data.lockState);
+      showStamps(data.stamps);
+      if (data.lockState && data.lockState.locked) doneTodo("鍵");
     } else if (data.type === "cream") {
       showCream(data.creamState);
+      showStamps(data.stamps);
+      doneTodo("クリーム");
     } else if (data.type === "collar") {
       showCollar(data.collarState);
+      showStamps(data.stamps);
     } else if (data.type === "look") {
       showLook(data.lookState);
+    } else if (data.type === "reminder") {
+      // 夜になってもやり忘れがあるとき
+      showTodoWarn(data.todo);
+      notifyPopup("🐾 まだだよ！", `${data.todo.join("と")}がまだだよ`);
     }
   };
 }
@@ -462,3 +541,5 @@ connect();
 
 // 「○分前」の表示を定期的に更新する
 setInterval(render, 30000);
+// 日付が変わったときのために「今日のごはん」も定期的に見直す
+setInterval(() => showTodayMeal(loadContent().mealPlan || {}), 60000);
