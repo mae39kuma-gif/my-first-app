@@ -679,33 +679,43 @@ const server = http.createServer((req, res) => {
 });
 
 // --- やり忘れのお知らせ ---
-// 日本時間で夜（21時以降）になっても「鍵」「クリーム」が終わっていなければ、
-// ゆうたの端末に「まだだよ！」とお知らせを送る（1日1回だけ）。
-const REMINDER_HOUR = 21; // 日本時間の何時から知らせるか
+// 日本時間の夜11時になっても「鍵」「クリーム」が終わっていなければ、
+// ゆうたの端末に「まだだよ！」とお知らせを送る（1晩に1回だけ）。
+const REMINDER_HOUR = 23;     // 日本時間の何時から知らせるか（23=夜11時）
+const REMINDER_END_HOUR = 2;  // 深夜2時までは「同じ夜」として扱う
+                              // （サーバーが眠っていて23時台を逃しても届くように）
 
 // 日本時間での「今日の日付」と「時」を求める
 function jstNow() {
   const d = new Date(Date.now() + 9 * 60 * 60 * 1000); // UTC+9
   return { day: d.toISOString().slice(0, 10), hour: d.getUTCHours() };
 }
-// その時刻が日本時間で「今日」かどうか
-function isTodayJst(iso, today) {
+// 日付を1日ずらす（"2026-08-10" → "2026-08-09" など）
+function shiftDay(day, diff) {
+  const d = new Date(day + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + diff);
+  return d.toISOString().slice(0, 10);
+}
+// その日（日本時間）の0時以降に済ませてあるか
+function doneSinceJst(iso, day) {
   if (!iso) return false;
-  return new Date(new Date(iso).getTime() + 9 * 60 * 60 * 1000)
-    .toISOString().slice(0, 10) === today;
+  return new Date(iso).getTime() >= Date.parse(day + "T00:00:00+09:00");
 }
 
 function checkReminder() {
   const { day, hour } = jstNow();
-  if (hour < REMINDER_HOUR) return;   // まだ夜になっていない
-  if (lastReminderDay === day) return; // 今日はもう送った
+  // 夜11時〜深夜2時のあいだだけ確認する
+  if (hour < REMINDER_HOUR && hour >= REMINDER_END_HOUR) return;
+  // 深夜0〜2時は「前の日の夜」として数える
+  const night = hour < REMINDER_END_HOUR ? shiftDay(day, -1) : day;
+  if (lastReminderDay === night) return; // この夜はもう送った
 
   const todo = [];
   if (!lockState.locked) todo.push("鍵");
-  if (!isTodayJst(creamState.time, day)) todo.push("クリーム");
+  if (!doneSinceJst(creamState.time, night)) todo.push("クリーム");
   if (todo.length === 0) return; // 全部おわっている
 
-  lastReminderDay = day;
+  lastReminderDay = night;
   scheduleSave();
   sendPush("dog", "🐾 まだだよ！", `${todo.join("と")}がまだだよ`);
   broadcast({ type: "reminder", todo });
