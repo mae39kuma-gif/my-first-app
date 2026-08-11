@@ -193,10 +193,18 @@ function showStamps(stamps) {
   const n = week.length;
 
   document.getElementById("stampCount").textContent = `${n}個`;
-  const row = document.getElementById("stampRow");
-  row.innerHTML = n
-    ? "🐾".repeat(Math.min(n, 60))
-    : '<span class="none">まだスタンプはありません</span>';
+
+  // スタンプカードを描く（14マス。7つ目と14こ目はごほうび🎁）
+  const card = document.getElementById("stampCard");
+  card.innerHTML = "";
+  for (let i = 1; i <= GOAL2; i++) {
+    const filled = i <= n;
+    const isGoal = i === GOAL1 || i === GOAL2;
+    const slot = document.createElement("div");
+    slot.className = "slot" + (filled ? " filled" : "") + (isGoal ? " goal" : "");
+    slot.textContent = filled ? "🐾" : isGoal ? "🎁" : i;
+    card.appendChild(slot);
+  }
 
   const goal = document.getElementById("stampGoal");
   if (n >= GOAL2) {

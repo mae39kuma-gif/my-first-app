@@ -112,20 +112,30 @@ function weekStart() {
 const GOAL1 = 7;  // ここまで集めると ごほうび
 const GOAL2 = 14; // ここまで集めると もっとごほうび
 
+let lastStampCount = -1; // 増えたときだけアニメを出すため
+
 function showStamps(stamps) {
   const start = weekStart().getTime();
   const week = (stamps || []).filter((s) => new Date(s.time).getTime() >= start);
   const n = week.length;
 
   document.getElementById("stampCount").textContent = `${n}個`;
-  const row = document.getElementById("stampRow");
-  row.innerHTML = n
-    ? "🐾".repeat(Math.min(n, 60))
-    : '<span class="none">まだスタンプはありません</span>';
 
-  // ごほうびまでの進み具合をバーで見せる
-  const pct = Math.min((n / GOAL2) * 100, 100);
-  document.getElementById("stampBarFill").style.width = `${pct}%`;
+  // スタンプカードを描く（14マス。7つ目と14こ目はごほうび🎁）
+  const card = document.getElementById("stampCard");
+  card.innerHTML = "";
+  const isNew = lastStampCount >= 0 && n > lastStampCount; // 今もらったところ
+  for (let i = 1; i <= GOAL2; i++) {
+    const filled = i <= n;
+    const isGoal = i === GOAL1 || i === GOAL2;
+    const slot = document.createElement("div");
+    slot.className =
+      "slot" + (filled ? " filled" : "") + (isGoal ? " goal" : "") +
+      (filled && isNew && i === n ? " newest" : "");
+    slot.textContent = filled ? "🐾" : isGoal ? "🎁" : i;
+    card.appendChild(slot);
+  }
+  lastStampCount = n;
 
   // あと何個でごほうびかを知らせる
   const goal = document.getElementById("stampGoal");
@@ -136,6 +146,10 @@ function showStamps(stamps) {
   } else {
     goal.textContent = `あと${GOAL1 - n}つで ごほうび🎁`;
   }
+
+  // 14こを超えた分
+  const extra = document.getElementById("stampExtra");
+  extra.textContent = n > GOAL2 ? `🐾 さらに ${n - GOAL2}こ ためたよ！` : "";
 }
 
 // --- やり忘れのお知らせ ---

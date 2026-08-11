@@ -143,24 +143,32 @@
     .stamp-box { margin-top: 14px; padding-top: 12px; border-top: 1px dashed #ecdcc4; }
     .stamp-title { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
     .stamp-title span { color: var(--accent-dark); font-weight: 700; }
-    .stamp-row { font-size: 20px; line-height: 1.5; word-break: break-all; min-height: 26px; }
-    .stamp-row .none { font-size: 13px; color: var(--muted); }
-    .stamp-bar {
-      position: relative; height: 10px; background: #efe2cd;
-      border-radius: 999px; margin: 10px 0 8px; overflow: hidden;
+    /* スタンプカード：14マスに🐾が埋まっていく */
+    .stamp-card {
+      display: grid; grid-template-columns: repeat(7, 1fr);
+      gap: 6px; margin: 10px 0;
     }
-    .stamp-bar-fill {
-      height: 100%; width: 0;
-      background: linear-gradient(90deg, #e0a86b, var(--accent));
-      border-radius: 999px; transition: width .4s ease;
+    .slot {
+      aspect-ratio: 1; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 17px; font-weight: 600;
+      border: 2px dashed #e0cdb0; color: #c9b191; background: #fdf6ec;
     }
-    .stamp-mark {
-      position: absolute; top: 0; left: 50%;
-      width: 2px; height: 100%; background: var(--card);
+    .slot.goal { border-color: #d9a441; background: #fff6e0; }
+    .slot.filled {
+      background: var(--accent); border: 2px solid var(--accent-dark);
+      color: #fff; box-shadow: 0 2px 6px rgba(140, 90, 40, .25);
+    }
+    .slot.newest { animation: stampPop .45s ease; }
+    @keyframes stampPop {
+      0% { transform: scale(0.3) rotate(-25deg); opacity: 0; }
+      60% { transform: scale(1.25) rotate(8deg); }
+      100% { transform: scale(1) rotate(0); opacity: 1; }
     }
     .stamp-goal {
       font-size: 14px; font-weight: 700; color: var(--accent-dark); margin-bottom: 10px;
     }
+    .stamp-extra { font-size: 12px; color: var(--accent-dark); margin: -4px 0 10px; }
     .stamp-help {
       font-size: 12px; color: var(--muted); line-height: 1.8;
       background: #fdf6ec; border-radius: 10px; padding: 10px 12px;
@@ -214,12 +222,9 @@
       <div class="todo-warn" id="todoWarn"></div>
       <div class="stamp-box">
         <div class="stamp-title">今週のごほうびスタンプ <span id="stampCount">0個</span></div>
-        <div class="stamp-row" id="stampRow"></div>
-        <div class="stamp-bar">
-          <div class="stamp-bar-fill" id="stampBarFill"></div>
-          <div class="stamp-mark"></div>
-        </div>
+        <div class="stamp-card" id="stampCard"></div>
         <div class="stamp-goal" id="stampGoal"></div>
+        <div class="stamp-extra" id="stampExtra"></div>
         <div class="stamp-help">
           <div>・する事をやると スタンプが 1つ もらえるよ</div>
           <div>・<b>7つ</b>あつめると <b>ごほうび🎁</b></div>
