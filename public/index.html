@@ -133,6 +133,8 @@
     }
     .care-btn:active { transform: scale(0.97); }
     .care-btn.locked { background: #b5793f; color: #fff; }
+    /* 今日もうスタンプをもらった する事には🐾を付ける */
+    .care-btn.stamped::after { content: " 🐾"; }
     .care-state { font-size: 12px; color: var(--muted); margin-top: 8px; }
     .todo-warn {
       display: none; margin-top: 12px; padding: 10px 12px; border-radius: 10px;
@@ -227,6 +229,7 @@
         <div class="stamp-extra" id="stampExtra"></div>
         <div class="stamp-help">
           <div>・する事をやると スタンプが 1つ もらえるよ</div>
+          <div>・おなじ する事は <b>1日1つ</b>まで（🐾が付いたら今日はおしまい）</div>
           <div>・<b>7つ</b>あつめると <b>ごほうび🎁</b></div>
           <div>・<b>14こ</b>あつめると <b>もっとごほうび🎁🎁</b></div>
           <div>・スタンプは 毎週月曜日に リセットされるよ</div>

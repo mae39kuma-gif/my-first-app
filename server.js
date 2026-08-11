@@ -85,10 +85,22 @@ let lastReminderDay = "";
 let requests = []; // { name, text, time }
 const REQUESTS_MAX = 50;
 
+// その時刻が日本時間で何日かを返す（"2026-08-10" のような形）
+function jstDay(t) {
+  return new Date(new Date(t).getTime() + 9 * 60 * 60 * 1000)
+    .toISOString().slice(0, 10);
+}
+
 // スタンプを1つ増やす
-function addStamp(type) {
+// oncePerDay=true のときは、その種類は1日に1つまで（何度押しても増えない）
+function addStamp(type, oncePerDay = false) {
+  if (oncePerDay) {
+    const today = jstDay(Date.now());
+    if (stamps.some((s) => s.type === type && jstDay(s.time) === today)) return false;
+  }
   stamps.unshift({ type, time: new Date().toISOString() });
   if (stamps.length > STAMPS_MAX) stamps.length = STAMPS_MAX;
+  return true;
 }
 
 // --- データベースへの保存・読み込み（Upstash Redisがあれば永久保存）---
@@ -525,7 +537,7 @@ const server = http.createServer((req, res) => {
   if (req.url === "/lock" && req.method === "POST") {
     readJson(req, res, (data) => {
       lockState = { locked: !!data.locked, time: new Date().toISOString() };
-      if (lockState.locked) addStamp("鍵"); // かけたときだけスタンプ
+      if (lockState.locked) addStamp("鍵", true); // かけたとき・1日1回だけ
       scheduleSave();
       broadcast({ type: "lock", lockState, stamps });
       // ご主人の端末へプッシュ
@@ -540,7 +552,7 @@ const server = http.createServer((req, res) => {
   if (req.url === "/cream" && req.method === "POST") {
     readJson(req, res, () => {
       creamState = { time: new Date().toISOString() };
-      addStamp("クリーム");
+      addStamp("クリーム", true); // 1日1回だけ
       scheduleSave();
       broadcast({ type: "cream", creamState, stamps });
       // ご主人の端末へプッシュ
@@ -555,7 +567,7 @@ const server = http.createServer((req, res) => {
   if (req.url === "/collar" && req.method === "POST") {
     readJson(req, res, (data) => {
       collarState = { on: !!data.on, time: new Date().toISOString() };
-      if (collarState.on) addStamp("首輪"); // 付けたときだけスタンプ
+      if (collarState.on) addStamp("首輪", true); // 付けたとき・1日1回だけ
       scheduleSave();
       broadcast({ type: "collar", collarState, stamps });
       // ご主人の端末へプッシュ

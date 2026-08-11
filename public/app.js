@@ -150,6 +150,24 @@ function showStamps(stamps) {
   // 14こを超えた分
   const extra = document.getElementById("stampExtra");
   extra.textContent = n > GOAL2 ? `🐾 さらに ${n - GOAL2}こ ためたよ！` : "";
+
+  markTodayStamps(stamps);
+}
+
+// 今日もうスタンプをもらった する事のボタンに🐾を付ける
+// （する事のスタンプは1日1つまでなので、押しても増えないことが分かるように）
+function markTodayStamps(stamps) {
+  const today = new Date().toDateString();
+  const done = new Set(
+    (stamps || [])
+      .filter((s) => new Date(s.time).toDateString() === today)
+      .map((s) => s.type)
+  );
+  [["鍵", "lockBtn"], ["クリーム", "creamBtn"], ["首輪", "collarBtn"]].forEach(
+    ([type, id]) => {
+      document.getElementById(id).classList.toggle("stamped", done.has(type));
+    }
+  );
 }
 
 // --- やり忘れのお知らせ ---
