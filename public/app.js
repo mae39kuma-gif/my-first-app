@@ -498,12 +498,16 @@ if ("Notification" in window) {
         location.reload();
       });
     } else {
-      permNotice.innerHTML = '🔔 ブラウザ通知はオンです（<a href="#" id="offPush">解除する</a>）';
+      ensurePushRole("dog"); // この端末の宛先を決める（すでにあればそのまま）
+      permNotice.innerHTML =
+        '🔔 ブラウザ通知はオンです（<a href="#" id="offPush">解除する</a>）<br>' +
+        roleNoticeHtml();
       registerPush("dog"); // 閉じていても届くプッシュを登録
       document.getElementById("offPush").addEventListener("click", (e) => {
         e.preventDefault();
         unsubscribePush().then(() => location.reload());
       });
+      wireRoleSwitch();
     }
   }
 }

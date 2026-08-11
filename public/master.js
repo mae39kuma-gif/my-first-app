@@ -389,12 +389,16 @@ if ("Notification" in window) {
         location.reload();
       });
     } else {
-      permNotice.innerHTML = '🔔 通知はオンです（<a href="#" id="offPush">解除する</a>）';
+      ensurePushRole("master"); // この端末の宛先を決める（すでにあればそのまま）
+      permNotice.innerHTML =
+        '🔔 通知はオンです（<a href="#" id="offPush">解除する</a>）<br>' +
+        roleNoticeHtml();
       registerPush("master"); // 閉じていても届くプッシュを登録
       document.getElementById("offPush").addEventListener("click", (e) => {
         e.preventDefault();
         unsubscribePush().then(() => location.reload());
       });
+      wireRoleSwitch();
     }
   } else {
     permNotice.textContent = "🔕 通知はオフです（端末の設定から許可できます）";

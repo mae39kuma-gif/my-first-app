@@ -333,7 +333,13 @@ const server = http.createServer((req, res) => {
   // --- 状態確認（DB・プッシュが有効かを返す。秘密の値は出さない）---
   if (req.url === "/health") {
     res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ ok: true, db: !!redis, push: pushEnabled }));
+    res.end(JSON.stringify({
+      ok: true,
+      db: !!redis,
+      push: pushEnabled,
+      // 通知の宛先として登録されている端末の数（中身は出さない）
+      targets: { dog: subscriptions.dog.length, master: subscriptions.master.length },
+    }));
     return;
   }
 

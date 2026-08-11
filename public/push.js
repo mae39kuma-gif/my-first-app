@@ -4,6 +4,40 @@
 
 window.__pushActive = false;
 
+// --- この端末の「通知の宛先」を覚えておく ---
+// 見ているページで決めると、ご主人がわんこ画面を開いただけで宛先が
+// 入れ替わってしまうので、端末ごとに記憶して勝手に変わらないようにする。
+function ensurePushRole(defaultRole) {
+  let role = localStorage.getItem("pushRole");
+  if (role !== "dog" && role !== "master") {
+    role = defaultRole; // はじめて開いたときだけページに合わせる
+    localStorage.setItem("pushRole", role);
+  }
+  return role;
+}
+
+// 宛先の案内文（切り替えリンクつき）を作る
+function roleNoticeHtml() {
+  const role = localStorage.getItem("pushRole") === "master" ? "master" : "dog";
+  const nowLabel = role === "master" ? "ご主人用" : "ゆうた用";
+  const other = role === "master" ? "dog" : "master";
+  const otherLabel = role === "master" ? "ゆうた用" : "ご主人用";
+  return `通知の宛先：<b>${nowLabel}</b>（<a href="#" id="switchRole" data-role="${other}">${otherLabel}にする</a>）`;
+}
+
+// 切り替えリンクを動くようにする
+function wireRoleSwitch() {
+  const el = document.getElementById("switchRole");
+  if (!el) return;
+  el.addEventListener("click", async (e) => {
+    e.preventDefault();
+    const next = el.dataset.role;
+    localStorage.setItem("pushRole", next);
+    await registerPush(next);
+    location.reload();
+  });
+}
+
 // VAPID公開鍵(文字)を、subscribeで使える形式に変換する
 function urlBase64ToUint8Array(base64String) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -14,7 +48,9 @@ function urlBase64ToUint8Array(base64String) {
   return arr;
 }
 
-async function registerPush(role) {
+async function registerPush(defaultRole) {
+  // この端末に覚えさせた宛先を使う（ページで勝手に変わらない）
+  const role = ensurePushRole(defaultRole);
   // ユーザーが「解除」した端末では登録し直さない
   if (localStorage.getItem("pushDisabled") === "1") return;
   // 対応していないブラウザ、または通知が許可されていなければ何もしない
