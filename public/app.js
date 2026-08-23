@@ -167,6 +167,60 @@ function showRewards(rewards) {
     (n.used + b.used > 0 ? `（つかったの：${n.used + b.used}こ）` : "");
 }
 
+// --- ごほうびのオネダリ ---
+// ご主人に「これがしたい！」と送る
+async function sendWish(text) {
+  if (!text) {
+    alert("したいことを書いてね");
+    return;
+  }
+  const kind = document.getElementById("wishKind").value;
+  try {
+    await fetch("/wish", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind, text }),
+    });
+    document.getElementById("wishText").value = "";
+    showToast(`わん！「${text}」をおねだりしました！🎁`);
+  } catch (e) {
+    alert("送信に失敗しました。");
+  }
+}
+document.querySelectorAll(".wish-preset").forEach((b) => {
+  b.addEventListener("click", () => sendWish(b.dataset.msg));
+});
+document.getElementById("sendWish").addEventListener("click", () => {
+  sendWish(document.getElementById("wishText").value.trim());
+});
+
+// 最後に見たお返事を覚えておく（画面を開いた時に古い分で鳴らないように）
+let lastAnsweredId = null;
+let wishesReady = false;
+
+// オネダリの一覧（お返事の結果もわかる）
+function showWishes(wishes) {
+  const el = document.getElementById("wishList");
+  const list = (wishes || []).slice(0, 10);
+  if (!list.length) {
+    el.innerHTML = "";
+    return;
+  }
+  el.innerHTML = "";
+  list.forEach((w) => {
+    const label =
+      w.status === "done" ? "かなった🎉" : w.status === "no" ? "またこんど" : "おへんじまち";
+    const item = document.createElement("div");
+    item.className = "wish-item";
+    item.innerHTML = `
+      <span class="wish-badge ${w.status}">${label}</span>
+      <span class="wish-text ${w.status === "no" ? "no" : ""}">${escapeHtml(w.text)}</span>
+      <span class="wish-badge">${w.kind === "big" ? "🎁🎁" : "🎁"}</span>
+    `;
+    el.appendChild(item);
+  });
+}
+
 // 今日もうスタンプをもらった する事のボタンに🐾を付ける
 // （する事のスタンプは1日1つまでなので、押しても増えないことが分かるように）
 function markTodayStamps(stamps) {
@@ -555,6 +609,11 @@ function connect() {
       showLook(data.lookState);
       showStamps(data.stamps);
       showRewards(data.rewards);
+      showWishes(data.wishes);
+      // 画面を開いた時点のお返事は「見たこと」にして、あとの新着だけ知らせる
+      const seen = (data.wishes || []).find((w) => w.status !== "pending");
+      lastAnsweredId = seen ? seen.id : null;
+      wishesReady = true;
       saveContent({ mealPlan: meal, masterStatus: ms, lastCheer: cheer });
       render();
       saveCache();
@@ -606,6 +665,20 @@ function connect() {
       showRewards(data.rewards);
       showToast("わん！スタンプをもらいました！🐾");
       notifyPopup("🐾 スタンプをもらったよ！", "ご主人からスタンプが1つ");
+    } else if (data.type === "wishes") {
+      // オネダリの状況が変わった（送った／お返事がきた）
+      showWishes(data.wishes);
+      if (data.rewards) showRewards(data.rewards);
+      // 新しいお返事がきたときだけ知らせる
+      const answered = (data.wishes || []).find((w) => w.status !== "pending");
+      if (answered && wishesReady && answered.id !== lastAnsweredId) {
+        showToast(
+          answered.status === "done"
+            ? `🎉 「${answered.text}」がかなったよ！`
+            : `「${answered.text}」は またこんど`
+        );
+      }
+      if (answered) lastAnsweredId = answered.id;
     } else if (data.type === "reminder") {
       // 夜になってもやり忘れがあるとき
       showTodoWarn(data.todo);

@@ -186,6 +186,34 @@
       font-size: 11px; color: var(--muted);
       margin-top: 6px; padding-top: 6px; border-top: 1px dashed #ecdcc4;
     }
+    .wish-area { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ecdcc4; }
+    .wish-head { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+    .wish-presets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+    .wish-preset {
+      background: #fff; border: 1px solid var(--accent); color: var(--accent-dark);
+      border-radius: 999px; padding: 7px 12px; font-size: 13px; cursor: pointer;
+    }
+    .wish-preset:active { transform: scale(0.96); }
+    .wish-row { display: flex; gap: 6px; }
+    .wish-row select {
+      border: 1px solid #e2e5ee; border-radius: 10px; padding: 8px;
+      font-size: 13px; background: #fff; color: var(--text); max-width: 42%;
+    }
+    .wish-row input { flex: 1; min-width: 0; }
+    .wish-list { margin-top: 10px; }
+    .wish-item {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 13px; padding: 6px 0; border-bottom: 1px dashed #f0e4d2;
+    }
+    .wish-item:last-child { border-bottom: none; }
+    .wish-badge {
+      font-size: 11px; border-radius: 999px; padding: 2px 8px; white-space: nowrap;
+    }
+    .wish-badge.pending { background: #fff0d8; color: #a9762c; }
+    .wish-badge.done { background: #ddf3dd; color: #3d7a3d; }
+    .wish-badge.no { background: #eee; color: #888; }
+    .wish-text { flex: 1; min-width: 0; }
+    .wish-text.no { color: var(--muted); text-decoration: line-through; }
     .stamp-help {
       font-size: 12px; color: var(--muted); line-height: 1.8;
       background: #fdf6ec; border-radius: 10px; padding: 10px 12px;
@@ -253,6 +281,25 @@
             <span class="reward-have" id="have2">0こ</span>
           </div>
           <div class="reward-total" id="rewardTotal"></div>
+
+          <div class="wish-area">
+            <div class="wish-head">🎁 なにがしたい？ ご主人にオネダリしよう</div>
+            <div class="wish-presets">
+              <button class="wish-preset" data-msg="おでかけしたい">おでかけしたい</button>
+              <button class="wish-preset" data-msg="おやつたべたい">おやつたべたい</button>
+              <button class="wish-preset" data-msg="ぎゅーしてほしい">ぎゅーしてほしい</button>
+              <button class="wish-preset" data-msg="いっしょに寝たい">いっしょに寝たい</button>
+            </div>
+            <div class="wish-row">
+              <select id="wishKind">
+                <option value="normal">ごほうび🎁</option>
+                <option value="big">もっとごほうび🎁🎁</option>
+              </select>
+              <input type="text" id="wishText" placeholder="したいことを書く" />
+              <button class="send" id="sendWish">おねだり</button>
+            </div>
+            <div class="wish-list" id="wishList"></div>
+          </div>
         </div>
         <div class="stamp-help">
           <div>・する事をやると スタンプが 1つ もらえるよ</div>

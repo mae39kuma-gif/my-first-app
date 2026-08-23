@@ -229,6 +229,73 @@ function showRewards(rewards) {
     `これまで${b.earned}こ / つかった${b.used}こ`;
 }
 
+// --- ゆうたのオネダリ ---
+let wishItems = [];
+function renderWishes() {
+  const el = document.getElementById("wishes");
+  if (!wishItems.length) {
+    el.innerHTML = '<div class="empty">まだオネダリはありません</div>';
+    return;
+  }
+  el.innerHTML = "";
+  wishItems.slice(0, 30).forEach((w) => {
+    const kindLabel = w.kind === "big" ? "もっとごほうび🎁🎁" : "ごほうび🎁";
+    const item = document.createElement("div");
+    item.className = "wish-item";
+    item.innerHTML = `
+      <div class="wish-main">
+        <div class="wish-text ${w.status === "no" ? "no" : ""}">${escapeHtml(w.text)}</div>
+        <div class="wish-meta">${kindLabel}・${relativeTime(w.time)}</div>
+      </div>
+    `;
+    const acts = document.createElement("div");
+    if (w.status === "pending") {
+      acts.className = "wish-acts";
+      const yes = document.createElement("button");
+      yes.className = "wish-btn yes";
+      yes.textContent = "かなえる";
+      yes.addEventListener("click", () => answerWish(w.id, true, w.text));
+      const no = document.createElement("button");
+      no.className = "wish-btn no";
+      no.textContent = "またこんど";
+      no.addEventListener("click", () => answerWish(w.id, false, w.text));
+      acts.append(yes, no);
+    } else if (w.status === "done") {
+      acts.className = "wish-done";
+      acts.textContent = "かなえた🎉";
+    } else {
+      acts.className = "wish-nope";
+      acts.textContent = "またこんど";
+    }
+    item.appendChild(acts);
+    el.appendChild(item);
+  });
+}
+
+async function answerWish(id, ok, text) {
+  if (ok && !confirm(`「${text}」をかなえますか？（ごほうびを1つつかいます）`)) return;
+  try {
+    const res = await fetch("/wish-answer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, ok }),
+    });
+    const json = await res.json();
+    if (!json.ok) alert(json.reason || "できませんでした");
+  } catch (e) {
+    alert("送信に失敗しました。");
+  }
+}
+
+document.getElementById("clearWishes").addEventListener("click", async () => {
+  if (!confirm("お返事ずみのオネダリを消しますか？（お返事まちは残ります）")) return;
+  try {
+    await fetch("/clear-wishes", { method: "POST" });
+  } catch (e) {
+    alert("削除に失敗しました。");
+  }
+});
+
 // ＋（足す）／つかう（減らす）ボタン
 document.querySelectorAll(".rw-btn").forEach((b) => {
   b.addEventListener("click", async () => {
@@ -476,6 +543,8 @@ function connect() {
       showLook(data.lookState);
       showStamps(data.stamps);
       showRewards(data.rewards);
+      wishItems = data.wishes || [];
+      renderWishes();
       render();
       renderRequests();
       saveCache();
@@ -532,6 +601,16 @@ function connect() {
       showRewards(data.rewards);
     } else if (data.type === "rewards") {
       showRewards(data.rewards);
+    } else if (data.type === "wishes") {
+      const before = wishItems.filter((w) => w.status === "pending").length;
+      wishItems = data.wishes || [];
+      if (data.rewards) showRewards(data.rewards);
+      renderWishes();
+      const after = wishItems.filter((w) => w.status === "pending").length;
+      if (notifyReady && after > before) {
+        const newest = wishItems.find((w) => w.status === "pending");
+        if (newest) notify("🎁 ゆうたのオネダリ", newest.text);
+      }
     }
   };
 }

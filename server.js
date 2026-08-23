@@ -89,6 +89,9 @@ let rewards = {
   gotNormal: false, // 今週すでに7つに届いたか
   gotBig: false,    // 今週すでに14こに届いたか
 };
+// ごほうびのオネダリ（ゆうたが「これがいい！」と送るもの・最大50件）
+let wishes = []; // { id, kind, text, time, status: "pending"|"done"|"no" }
+const WISHES_MAX = 50;
 // やり忘れのお知らせを最後に送った日（同じ日に何度も送らないため）
 let lastReminderDay = "";
 // わんこからの「ごはんリクエスト」（新しいものが先頭・最大50件）
@@ -153,7 +156,7 @@ function addStamp(type, oncePerDay = false) {
 
 // --- データベースへの保存・読み込み（Upstash Redisがあれば永久保存）---
 function snapshot() {
-  return { currentStatus, history, mealPlan, masterStatus, lastCheer, lockState, creamState, collarState, lookState, stamps, rewards, lastReminderDay, requests, subscriptions };
+  return { currentStatus, history, mealPlan, masterStatus, lastCheer, lockState, creamState, collarState, lookState, stamps, rewards, wishes, lastReminderDay, requests, subscriptions };
 }
 let saveTimer = null;
 function scheduleSave() {
@@ -183,6 +186,7 @@ async function loadState() {
     if (s.lookState) lookState = s.lookState;
     if (Array.isArray(s.stamps)) stamps = s.stamps;
     if (s.rewards) rewards = s.rewards;
+    if (Array.isArray(s.wishes)) wishes = s.wishes;
     if (s.lastReminderDay) lastReminderDay = s.lastReminderDay;
     if (Array.isArray(s.requests)) requests = s.requests;
     if (s.subscriptions) {
@@ -461,6 +465,7 @@ const server = http.createServer((req, res) => {
         lookState: lookState,
         stamps: stamps,
         rewards: rewards,
+        wishes: wishes,
       })}\n\n`
     );
 
@@ -667,6 +672,78 @@ const server = http.createServer((req, res) => {
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ ok: true }));
     });
+    return;
+  }
+
+  // --- わんこが「これがいい！」とオネダリする ---
+  if (req.url === "/wish" && req.method === "POST") {
+    readJson(req, res, (data) => {
+      if (!data.text) {
+        res.writeHead(400);
+        res.end("text が必要です");
+        return;
+      }
+      const wish = {
+        id: Date.now() + "-" + Math.random().toString(36).slice(2, 7),
+        kind: data.kind === "big" ? "big" : "normal",
+        text: String(data.text).slice(0, 100),
+        time: new Date().toISOString(),
+        status: "pending",
+      };
+      wishes.unshift(wish);
+      if (wishes.length > WISHES_MAX) wishes.length = WISHES_MAX;
+      scheduleSave();
+      broadcast({ type: "wishes", wishes });
+      sendPush("master", "🎁 ゆうたのオネダリ", wish.text);
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: true }));
+    });
+    return;
+  }
+
+  // --- ご主人がオネダリに答える（かなえる / ことわる）---
+  if (req.url === "/wish-answer" && req.method === "POST") {
+    readJson(req, res, (data) => {
+      const wish = wishes.find((w) => w.id === data.id);
+      if (!wish || wish.status !== "pending") {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: false, reason: "見つかりません" }));
+        return;
+      }
+      const label = wish.kind === "big" ? "もっとごほうび🎁🎁" : "ごほうび🎁";
+      if (data.ok) {
+        // かなえるときは、ごほうびを1つつかう
+        const r = rewards[wish.kind];
+        if (r.earned - r.used <= 0) {
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ ok: false, reason: `${label} ののこりがありません` }));
+          return;
+        }
+        r.used++;
+        wish.status = "done";
+      } else {
+        wish.status = "no";
+      }
+      scheduleSave();
+      broadcast({ type: "wishes", wishes, rewards });
+      sendPush(
+        "dog",
+        data.ok ? "🎉 オネダリが かなったよ！" : "オネダリのお返事がきたよ",
+        data.ok ? wish.text : `「${wish.text}」は またこんど`
+      );
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: true }));
+    });
+    return;
+  }
+
+  // --- ご主人がオネダリの履歴を消す ---
+  if (req.url === "/clear-wishes" && req.method === "POST") {
+    wishes = wishes.filter((w) => w.status === "pending"); // 未回答は残す
+    scheduleSave();
+    broadcast({ type: "wishes", wishes });
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ ok: true }));
     return;
   }
 
