@@ -79,6 +79,16 @@ let lookState = { time: "" };
 // ごほうびスタンプ（する事をこなすと貯まる・最大200件）
 let stamps = []; // { type, time } 新しいものが先頭
 const STAMPS_MAX = 200;
+// ごほうび（7つで「ごほうび」/ 14こで「もっとごほうび」）
+const GOAL1 = 7;
+const GOAL2 = 14;
+let rewards = {
+  normal: { earned: 0, used: 0 }, // ごほうび🎁：もらった数 / つかった数
+  big: { earned: 0, used: 0 },    // もっとごほうび🎁🎁
+  week: "",        // 今どの週を数えているか（月曜はじまり）
+  gotNormal: false, // 今週すでに7つに届いたか
+  gotBig: false,    // 今週すでに14こに届いたか
+};
 // やり忘れのお知らせを最後に送った日（同じ日に何度も送らないため）
 let lastReminderDay = "";
 // わんこからの「ごはんリクエスト」（新しいものが先頭・最大50件）
@@ -89,6 +99,44 @@ const REQUESTS_MAX = 50;
 function jstDay(t) {
   return new Date(new Date(t).getTime() + 9 * 60 * 60 * 1000)
     .toISOString().slice(0, 10);
+}
+
+// その週（月曜はじまり・日本時間）を表す文字列を返す
+function jstWeekKey(t = Date.now()) {
+  const d = new Date(new Date(t).getTime() + 9 * 60 * 60 * 1000);
+  const dow = (d.getUTCDay() + 6) % 7; // 月曜を0にする
+  d.setUTCDate(d.getUTCDate() - dow);
+  return d.toISOString().slice(0, 10);
+}
+// 今週たまっているスタンプの数
+function weekStampCount() {
+  const wk = jstWeekKey();
+  return stamps.filter((s) => jstWeekKey(s.time) === wk).length;
+}
+
+// スタンプが目標に届いたら、ごほうびを1つ増やす
+// 届いたときだけ、その名前を返す（届いていなければ null）
+function checkRewards() {
+  const wk = jstWeekKey();
+  if (rewards.week !== wk) {
+    // 週が変わったら、今週の達成フラグをリセット（もらった数はそのまま）
+    rewards.week = wk;
+    rewards.gotNormal = false;
+    rewards.gotBig = false;
+  }
+  const n = weekStampCount();
+  let got = null;
+  if (!rewards.gotNormal && n >= GOAL1) {
+    rewards.gotNormal = true;
+    rewards.normal.earned++;
+    got = "ごほうび🎁";
+  }
+  if (!rewards.gotBig && n >= GOAL2) {
+    rewards.gotBig = true;
+    rewards.big.earned++;
+    got = "もっとごほうび🎁🎁";
+  }
+  return got;
 }
 
 // スタンプを1つ増やす
@@ -105,7 +153,7 @@ function addStamp(type, oncePerDay = false) {
 
 // --- データベースへの保存・読み込み（Upstash Redisがあれば永久保存）---
 function snapshot() {
-  return { currentStatus, history, mealPlan, masterStatus, lastCheer, lockState, creamState, collarState, lookState, stamps, lastReminderDay, requests, subscriptions };
+  return { currentStatus, history, mealPlan, masterStatus, lastCheer, lockState, creamState, collarState, lookState, stamps, rewards, lastReminderDay, requests, subscriptions };
 }
 let saveTimer = null;
 function scheduleSave() {
@@ -134,6 +182,7 @@ async function loadState() {
     if (s.collarState) collarState = s.collarState;
     if (s.lookState) lookState = s.lookState;
     if (Array.isArray(s.stamps)) stamps = s.stamps;
+    if (s.rewards) rewards = s.rewards;
     if (s.lastReminderDay) lastReminderDay = s.lastReminderDay;
     if (Array.isArray(s.requests)) requests = s.requests;
     if (s.subscriptions) {
@@ -411,6 +460,7 @@ const server = http.createServer((req, res) => {
         collarState: collarState,
         lookState: lookState,
         stamps: stamps,
+        rewards: rewards,
       })}\n\n`
     );
 
@@ -544,8 +594,10 @@ const server = http.createServer((req, res) => {
     readJson(req, res, (data) => {
       lockState = { locked: !!data.locked, time: new Date().toISOString() };
       if (lockState.locked) addStamp("鍵", true); // かけたとき・1日1回だけ
+      const gotLock = checkRewards();
       scheduleSave();
-      broadcast({ type: "lock", lockState, stamps });
+      broadcast({ type: "lock", lockState, stamps, rewards });
+      if (gotLock) sendPush("dog", "🎁 " + gotLock + " ゲット！", "スタンプがたまったよ！");
       // ご主人の端末へプッシュ
       sendPush("master", lockState.locked ? "🔒 鍵をかけたよ" : "🔓 鍵を外したよ", "ゆうた");
       res.writeHead(200, { "Content-Type": "application/json" });
@@ -559,8 +611,10 @@ const server = http.createServer((req, res) => {
     readJson(req, res, () => {
       creamState = { time: new Date().toISOString() };
       addStamp("クリーム", true); // 1日1回だけ
+      const gotCream = checkRewards();
       scheduleSave();
-      broadcast({ type: "cream", creamState, stamps });
+      broadcast({ type: "cream", creamState, stamps, rewards });
+      if (gotCream) sendPush("dog", "🎁 " + gotCream + " ゲット！", "スタンプがたまったよ！");
       // ご主人の端末へプッシュ
       sendPush("master", "🧴 クリームを塗ったよ", "ゆうた");
       res.writeHead(200, { "Content-Type": "application/json" });
@@ -574,8 +628,10 @@ const server = http.createServer((req, res) => {
     readJson(req, res, (data) => {
       collarState = { on: !!data.on, time: new Date().toISOString() };
       if (collarState.on) addStamp("首輪", true); // 付けたとき・1日1回だけ
+      const gotCollar = checkRewards();
       scheduleSave();
-      broadcast({ type: "collar", collarState, stamps });
+      broadcast({ type: "collar", collarState, stamps, rewards });
+      if (gotCollar) sendPush("dog", "🎁 " + gotCollar + " ゲット！", "スタンプがたまったよ！");
       // ご主人の端末へプッシュ
       sendPush("master", collarState.on ? "🦮 首輪をつけたよ" : "🦮 首輪を外したよ", "ゆうた");
       res.writeHead(200, { "Content-Type": "application/json" });
@@ -602,10 +658,39 @@ const server = http.createServer((req, res) => {
   if (req.url === "/give-stamp" && req.method === "POST") {
     readJson(req, res, () => {
       addStamp("ごほうび");
+      const gotGift = checkRewards();
       scheduleSave();
-      broadcast({ type: "stamp", stamps });
+      broadcast({ type: "stamp", stamps, rewards });
+      if (gotGift) sendPush("dog", "🎁 " + gotGift + " ゲット！", "スタンプがたまったよ！");
       // わんこの端末へプッシュ
       sendPush("dog", "🐾 スタンプをもらったよ！", "ご主人からスタンプが1つ");
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: true }));
+    });
+    return;
+  }
+
+  // --- ごほうびを つかう（減らす）/ 足す ---
+  if ((req.url === "/use-reward" || req.url === "/add-reward") && req.method === "POST") {
+    const isUse = req.url === "/use-reward";
+    readJson(req, res, (data) => {
+      const kind = data.kind === "big" ? "big" : "normal";
+      const r = rewards[kind];
+      const label = kind === "big" ? "もっとごほうび🎁🎁" : "ごほうび🎁";
+      if (isUse) {
+        // 持っている数（もらった数 − つかった数）より多くは使えない
+        if (r.earned - r.used <= 0) {
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ ok: false, reason: "のこりがありません" }));
+          return;
+        }
+        r.used++;
+      } else {
+        r.earned++;
+      }
+      scheduleSave();
+      broadcast({ type: "rewards", rewards });
+      sendPush("dog", isUse ? `🎁 ${label} をつかったよ` : `🎁 ${label} をもらったよ！`, "ゆうた");
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ ok: true }));
     });

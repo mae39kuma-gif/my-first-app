@@ -154,6 +154,19 @@ function showStamps(stamps) {
   markTodayStamps(stamps);
 }
 
+// --- ごほうび🎁 ---
+// 「もっている数（もらった − つかった）」と「これまでの合計」を出す
+function showRewards(rewards) {
+  if (!rewards) return;
+  const n = rewards.normal || { earned: 0, used: 0 };
+  const b = rewards.big || { earned: 0, used: 0 };
+  document.getElementById("have1").textContent = `${n.earned - n.used}こ`;
+  document.getElementById("have2").textContent = `${b.earned - b.used}こ`;
+  document.getElementById("rewardTotal").textContent =
+    `これまでに ごほうび${n.earned}こ / もっとごほうび${b.earned}こ ためたよ` +
+    (n.used + b.used > 0 ? `（つかったの：${n.used + b.used}こ）` : "");
+}
+
 // 今日もうスタンプをもらった する事のボタンに🐾を付ける
 // （する事のスタンプは1日1つまでなので、押しても増えないことが分かるように）
 function markTodayStamps(stamps) {
@@ -541,6 +554,7 @@ function connect() {
       showCollar(data.collarState);
       showLook(data.lookState);
       showStamps(data.stamps);
+      showRewards(data.rewards);
       saveContent({ mealPlan: meal, masterStatus: ms, lastCheer: cheer });
       render();
       saveCache();
@@ -575,6 +589,7 @@ function connect() {
     } else if (data.type === "lock") {
       showLock(data.lockState);
       showStamps(data.stamps);
+      showRewards(data.rewards);
       if (data.lockState && data.lockState.locked) doneTodo("鍵");
     } else if (data.type === "cream") {
       showCream(data.creamState);
@@ -588,6 +603,7 @@ function connect() {
     } else if (data.type === "stamp") {
       // ご主人がスタンプをくれた
       showStamps(data.stamps);
+      showRewards(data.rewards);
       showToast("わん！スタンプをもらいました！🐾");
       notifyPopup("🐾 スタンプをもらったよ！", "ご主人からスタンプが1つ");
     } else if (data.type === "reminder") {

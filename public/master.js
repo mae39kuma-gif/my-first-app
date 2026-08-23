@@ -216,6 +216,40 @@ function showStamps(stamps) {
   }
 }
 
+// --- ごほうび🎁の管理 ---
+function showRewards(rewards) {
+  if (!rewards) return;
+  const n = rewards.normal || { earned: 0, used: 0 };
+  const b = rewards.big || { earned: 0, used: 0 };
+  document.getElementById("mHave1").textContent = `${n.earned - n.used}こ`;
+  document.getElementById("mHave2").textContent = `${b.earned - b.used}こ`;
+  document.getElementById("mSub1").textContent =
+    `これまで${n.earned}こ / つかった${n.used}こ`;
+  document.getElementById("mSub2").textContent =
+    `これまで${b.earned}こ / つかった${b.used}こ`;
+}
+
+// ＋（足す）／つかう（減らす）ボタン
+document.querySelectorAll(".rw-btn").forEach((b) => {
+  b.addEventListener("click", async () => {
+    const kind = b.dataset.kind;
+    const use = b.dataset.act === "use";
+    const label = kind === "big" ? "もっとごほうび🎁🎁" : "ごほうび🎁";
+    if (use && !confirm(`${label} を1つ つかいますか？`)) return;
+    try {
+      const res = await fetch(use ? "/use-reward" : "/add-reward", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind }),
+      });
+      const json = await res.json();
+      if (!json.ok) alert(json.reason || "できませんでした");
+    } catch (e) {
+      alert("送信に失敗しました。");
+    }
+  });
+});
+
 // スタンプをあげるボタン
 document.getElementById("giveStamp").addEventListener("click", async () => {
   const b = document.getElementById("giveStamp");
@@ -441,6 +475,7 @@ function connect() {
       showCollar(data.collarState);
       showLook(data.lookState);
       showStamps(data.stamps);
+      showRewards(data.rewards);
       render();
       renderRequests();
       saveCache();
@@ -475,15 +510,18 @@ function connect() {
     } else if (data.type === "lock") {
       showLock(data.lockState);
       showStamps(data.stamps);
+      showRewards(data.rewards);
       if (notifyReady)
         notify(data.lockState.locked ? "🔒 鍵をかけたよ" : "🔓 鍵を外したよ", "ゆうた");
     } else if (data.type === "cream") {
       showCream(data.creamState);
       showStamps(data.stamps);
+      showRewards(data.rewards);
       if (notifyReady) notify("🧴 クリームを塗ったよ", "ゆうた");
     } else if (data.type === "collar") {
       showCollar(data.collarState);
       showStamps(data.stamps);
+      showRewards(data.rewards);
       if (notifyReady)
         notify(data.collarState.on ? "🦮 首輪をつけたよ" : "🦮 首輪を外したよ", "ゆうた");
     } else if (data.type === "look") {
@@ -491,6 +529,9 @@ function connect() {
       if (notifyReady) notify("👀 見て欲しい！", "ゆうた");
     } else if (data.type === "stamp") {
       showStamps(data.stamps);
+      showRewards(data.rewards);
+    } else if (data.type === "rewards") {
+      showRewards(data.rewards);
     }
   };
 }
