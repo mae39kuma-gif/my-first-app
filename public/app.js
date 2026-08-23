@@ -187,11 +187,12 @@ async function sendWish(text) {
     alert("送信に失敗しました。");
   }
 }
-document.querySelectorAll(".wish-preset").forEach((b) => {
-  b.addEventListener("click", () => sendWish(b.dataset.msg));
-});
 document.getElementById("sendWish").addEventListener("click", () => {
   sendWish(document.getElementById("wishText").value.trim());
+});
+// Enterキーでも送れるようにする
+document.getElementById("wishText").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") sendWish(e.target.value.trim());
 });
 
 // 最後に見たお返事を覚えておく（画面を開いた時に古い分で鳴らないように）

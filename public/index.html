@@ -188,18 +188,19 @@
     }
     .wish-area { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ecdcc4; }
     .wish-head { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
-    .wish-presets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
-    .wish-preset {
-      background: #fff; border: 1px solid var(--accent); color: var(--accent-dark);
-      border-radius: 999px; padding: 7px 12px; font-size: 13px; cursor: pointer;
+    .wish-input {
+      width: 100%; padding: 12px; font-size: 16px;
+      border: 1px solid var(--accent); border-radius: 10px;
+      background: #fff; outline: none; margin-bottom: 8px;
     }
-    .wish-preset:active { transform: scale(0.96); }
+    .wish-input:focus { border-color: var(--accent-dark); }
     .wish-row { display: flex; gap: 6px; }
     .wish-row select {
-      border: 1px solid #e2e5ee; border-radius: 10px; padding: 8px;
-      font-size: 13px; background: #fff; color: var(--text); max-width: 42%;
+      flex: 1; min-width: 0;
+      border: 1px solid #e2e5ee; border-radius: 10px; padding: 10px;
+      font-size: 14px; background: #fff; color: var(--text);
     }
-    .wish-row input { flex: 1; min-width: 0; }
+    .wish-row .send { white-space: nowrap; }
     .wish-list { margin-top: 10px; }
     .wish-item {
       display: flex; align-items: center; gap: 8px;
@@ -284,18 +285,13 @@
 
           <div class="wish-area">
             <div class="wish-head">🎁 なにがしたい？ ご主人にオネダリしよう</div>
-            <div class="wish-presets">
-              <button class="wish-preset" data-msg="おでかけしたい">おでかけしたい</button>
-              <button class="wish-preset" data-msg="おやつたべたい">おやつたべたい</button>
-              <button class="wish-preset" data-msg="ぎゅーしてほしい">ぎゅーしてほしい</button>
-              <button class="wish-preset" data-msg="いっしょに寝たい">いっしょに寝たい</button>
-            </div>
+            <input type="text" id="wishText" class="wish-input"
+                   placeholder="したいことを書いてね（例：おでかけしたい）" />
             <div class="wish-row">
               <select id="wishKind">
                 <option value="normal">ごほうび🎁</option>
                 <option value="big">もっとごほうび🎁🎁</option>
               </select>
-              <input type="text" id="wishText" placeholder="したいことを書く" />
               <button class="send" id="sendWish">おねだり</button>
             </div>
             <div class="wish-list" id="wishList"></div>
