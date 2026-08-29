@@ -747,32 +747,42 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // --- ごほうびを つかう（減らす）/ 足す ---
-  if ((req.url === "/use-reward" || req.url === "/add-reward") && req.method === "POST") {
-    const isUse = req.url === "/use-reward";
+  // --- ごほうびの数を直す（もらった数・つかった数を ＋1 / −1）---
+  // 間違えて増やしてしまったときに戻せるようにするためのもの
+  if (req.url === "/adjust-reward" && req.method === "POST") {
     readJson(req, res, (data) => {
       const kind = data.kind === "big" ? "big" : "normal";
+      const field = data.field === "used" ? "used" : "earned";
+      const diff = data.diff < 0 ? -1 : 1;
       const r = rewards[kind];
-      const label = kind === "big" ? "もっとごほうび🎁🎁" : "ごほうび🎁";
-      if (isUse) {
-        // 持っている数（もらった数 − つかった数）より多くは使えない
-        if (r.earned - r.used <= 0) {
-          res.writeHead(200, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ ok: false, reason: "のこりがありません" }));
-          return;
-        }
-        r.used++;
-      } else {
-        r.earned++;
+      const next = r[field] + diff;
+
+      // ありえない数にならないように守る
+      if (next < 0) {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: false, reason: "0より小さくはできません" }));
+        return;
       }
+      if (field === "used" && next > r.earned) {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: false, reason: "もらった数より多くは使えません" }));
+        return;
+      }
+      if (field === "earned" && next < r.used) {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: false, reason: "つかった数より少なくはできません" }));
+        return;
+      }
+
+      r[field] = next;
       scheduleSave();
       broadcast({ type: "rewards", rewards });
-      sendPush("dog", isUse ? `🎁 ${label} をつかったよ` : `🎁 ${label} をもらったよ！`, "ゆうた");
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ ok: true }));
     });
     return;
   }
+
 
   // --- わんこがごはんをリクエストする ---
   if (req.url === "/request" && req.method === "POST") {

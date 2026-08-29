@@ -221,12 +221,12 @@ function showRewards(rewards) {
   if (!rewards) return;
   const n = rewards.normal || { earned: 0, used: 0 };
   const b = rewards.big || { earned: 0, used: 0 };
-  document.getElementById("mHave1").textContent = `${n.earned - n.used}こ`;
-  document.getElementById("mHave2").textContent = `${b.earned - b.used}こ`;
-  document.getElementById("mSub1").textContent =
-    `これまで${n.earned}こ / つかった${n.used}こ`;
-  document.getElementById("mSub2").textContent =
-    `これまで${b.earned}こ / つかった${b.used}こ`;
+  document.getElementById("mHave1").textContent = n.earned - n.used;
+  document.getElementById("mHave2").textContent = b.earned - b.used;
+  document.getElementById("mEarned1").textContent = n.earned;
+  document.getElementById("mUsed1").textContent = n.used;
+  document.getElementById("mEarned2").textContent = b.earned;
+  document.getElementById("mUsed2").textContent = b.used;
 }
 
 // --- ゆうたのオネダリ ---
@@ -297,17 +297,18 @@ document.getElementById("clearWishes").addEventListener("click", async () => {
 });
 
 // ＋（足す）／つかう（減らす）ボタン
+// もらった数・つかった数を ＋1 / −1 する（間違えたときも直せる）
 document.querySelectorAll(".rw-btn").forEach((b) => {
   b.addEventListener("click", async () => {
-    const kind = b.dataset.kind;
-    const use = b.dataset.act === "use";
-    const label = kind === "big" ? "もっとごほうび🎁🎁" : "ごほうび🎁";
-    if (use && !confirm(`${label} を1つ つかいますか？`)) return;
     try {
-      const res = await fetch(use ? "/use-reward" : "/add-reward", {
+      const res = await fetch("/adjust-reward", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind }),
+        body: JSON.stringify({
+          kind: b.dataset.kind,
+          field: b.dataset.field,
+          diff: Number(b.dataset.diff),
+        }),
       });
       const json = await res.json();
       if (!json.ok) alert(json.reason || "できませんでした");

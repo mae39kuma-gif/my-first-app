@@ -97,19 +97,23 @@
     }
     .give-stamp:active { transform: scale(0.98); }
     .stamp-note { font-size: 11px; color: var(--muted); margin-top: 8px; text-align: center; }
-    .reward-row {
-      display: flex; align-items: center; gap: 10px;
-      padding: 10px 0; border-bottom: 1px solid #4a3a2c;
-    }
+    .reward-row { padding: 12px 0; border-bottom: 1px solid #4a3a2c; }
     .reward-row:last-of-type { border-bottom: none; }
-    .reward-info { flex: 1; min-width: 0; }
+    .reward-head {
+      display: flex; align-items: baseline; justify-content: space-between;
+      gap: 10px; margin-bottom: 8px;
+    }
     .reward-name { font-size: 14px; font-weight: 600; }
-    .reward-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
-    .reward-have { font-size: 20px; font-weight: 700; color: var(--accent); white-space: nowrap; }
-    .reward-btns { display: flex; gap: 6px; }
+    .reward-have { font-size: 13px; color: var(--muted); white-space: nowrap; }
+    .reward-have span { font-size: 20px; font-weight: 700; color: var(--accent); }
+    .adj-line { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+    .adj-label { font-size: 12px; color: var(--muted); width: 4.5em; }
+    .adj-num {
+      font-size: 16px; font-weight: 700; min-width: 2em; text-align: center;
+    }
     .rw-btn {
       background: #4a3a2c; color: var(--text); border: 1px solid #5a4836;
-      border-radius: 8px; padding: 8px 10px; font-size: 13px; cursor: pointer;
+      border-radius: 8px; padding: 8px 14px; font-size: 15px; cursor: pointer;
     }
     .rw-btn.use { background: var(--accent); color: #2a2018; border-color: #c08a4a; }
     .rw-btn:active { transform: scale(0.96); }
@@ -186,28 +190,42 @@
     <h2>🎁 ごほうびの管理</h2>
     <div class="stamp-box">
       <div class="reward-row">
-        <div class="reward-info">
+        <div class="reward-head">
           <div class="reward-name">ごほうび🎁</div>
-          <div class="reward-sub" id="mSub1">これまで0こ / つかった0こ</div>
+          <div class="reward-have">のこり <span id="mHave1">0</span>こ</div>
         </div>
-        <div class="reward-have" id="mHave1">0こ</div>
-        <div class="reward-btns">
-          <button class="rw-btn" data-kind="normal" data-act="add">＋</button>
-          <button class="rw-btn use" data-kind="normal" data-act="use">つかう</button>
+        <div class="adj-line">
+          <span class="adj-label">もらった</span>
+          <button class="rw-btn" data-kind="normal" data-field="earned" data-diff="-1">−</button>
+          <span class="adj-num" id="mEarned1">0</span>
+          <button class="rw-btn" data-kind="normal" data-field="earned" data-diff="1">＋</button>
+        </div>
+        <div class="adj-line">
+          <span class="adj-label">つかった</span>
+          <button class="rw-btn" data-kind="normal" data-field="used" data-diff="-1">−</button>
+          <span class="adj-num" id="mUsed1">0</span>
+          <button class="rw-btn use" data-kind="normal" data-field="used" data-diff="1">＋</button>
         </div>
       </div>
       <div class="reward-row">
-        <div class="reward-info">
+        <div class="reward-head">
           <div class="reward-name">もっとごほうび🎁🎁</div>
-          <div class="reward-sub" id="mSub2">これまで0こ / つかった0こ</div>
+          <div class="reward-have">のこり <span id="mHave2">0</span>こ</div>
         </div>
-        <div class="reward-have" id="mHave2">0こ</div>
-        <div class="reward-btns">
-          <button class="rw-btn" data-kind="big" data-act="add">＋</button>
-          <button class="rw-btn use" data-kind="big" data-act="use">つかう</button>
+        <div class="adj-line">
+          <span class="adj-label">もらった</span>
+          <button class="rw-btn" data-kind="big" data-field="earned" data-diff="-1">−</button>
+          <span class="adj-num" id="mEarned2">0</span>
+          <button class="rw-btn" data-kind="big" data-field="earned" data-diff="1">＋</button>
+        </div>
+        <div class="adj-line">
+          <span class="adj-label">つかった</span>
+          <button class="rw-btn" data-kind="big" data-field="used" data-diff="-1">−</button>
+          <span class="adj-num" id="mUsed2">0</span>
+          <button class="rw-btn use" data-kind="big" data-field="used" data-diff="1">＋</button>
         </div>
       </div>
-      <div class="stamp-note">スタンプが目標に届くと自動で増えます。「＋」は手で足したいとき用</div>
+      <div class="stamp-note">スタンプが目標に届くと自動で増えます。間違えたときは −／＋ で直せます</div>
     </div>
 
     <h2 style="display:flex; align-items:center; justify-content:space-between">
